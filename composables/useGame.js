@@ -109,8 +109,12 @@ export const useGame = () => {
   }
 
   const setupGameListener = (gameId) => {
-    cleanupGameListener()
-
+    // Clean up existing listener
+    if (gameListener) {
+      gameListener()
+      gameListener = null
+    }
+  
     try {
       const gameRef = dbRef(database, `games/${gameId}`)
       gameListener = onValue(gameRef, (snapshot) => {
@@ -121,17 +125,14 @@ export const useGame = () => {
             ...data
           }
         } else {
-          currentGame.value = null
-          error.value = 'Game not found'
+          // Don't set to null, just log the error
+          console.error('Game not found in listener')
         }
-      }, (err) => {
-        console.error('Game listener error:', err)
-        error.value = 'Error monitoring game updates'
+      }, (error) => {
+        console.error('Game listener error:', error)
       })
     } catch (err) {
       console.error('Error setting up game listener:', err)
-      error.value = 'Failed to monitor game updates'
-      cleanupGameListener()
     }
   }
 
@@ -206,37 +207,37 @@ export const useGame = () => {
       error.value = 'Game ID is required'
       return null
     }
-
+  
     loading.value = true
     error.value = null
-
+  
     try {
       validateDatabaseConnection()
-
+  
       const gameRef = dbRef(database, `games/${gameId}`)
       const snapshot = await get(gameRef)
-
+  
       if (!snapshot.exists()) {
         throw new Error('Game not found')
       }
-
-      // Set up listener after successful fetch
-      setupGameListener(gameId)
-
-      return {
+  
+      const gameData = {
         id: gameId,
         ...snapshot.val()
       }
-
+  
+      // Set up listener only after successful fetch
+      setupGameListener(gameId)
+  
+      return gameData
+  
     } catch (err) {
       error.value = err.message
       console.error('Error fetching game:', err)
-      cleanupGameListener()
       throw err
     } finally {
       loading.value = false
-    }
-  }
+    }}
 
   const fetchPlayerGames = async (userId) => {
     loadingGames.value = true

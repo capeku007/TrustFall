@@ -1,0 +1,8 @@
+/* responsive dual cards like in dashboard */
+.main-Container {
+    @apply mx-auto max-w-4xl md:max-w-screen-lg lg:max-w-screen-xl m-2 ;
+}
+
+.sub-Container {
+    @apply h-full md:flex no-wrap md:-mx-1 ;
+}

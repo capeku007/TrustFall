@@ -1,0 +1,35 @@
+{
+  "name": "nuxt-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@formkit/auto-animate": "^0.8.2",
+    "@pinia/nuxt": "^0.5.5",
+    "@vite-pwa/nuxt": "^0.10.5",
+    "boxicons": "^2.1.4",
+    "firebase": "^10.12.0",
+    "flowbite": "^2.3.0",
+    "flowbite-datepicker": "^1.2.6",
+    "nuxt": "^3.11.2",
+    "pinia": "^2.2.4",
+    "uuid": "^10.0.0",
+    "validate.js": "^0.13.1",
+    "validator": "^13.12.0",
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2",
+    "vue3-toastify": "^0.2.1",
+    "wavesurfer.js": "^7.8.6"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.12.0",
+    "@vite-pwa/assets-generator": "^0.2.6",
+    "nuxt-icon": "^0.6.10"
+  }
+}

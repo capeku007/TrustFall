@@ -1,0 +1,2 @@
+# Wave Trimmer
+ An offline-capable web application for cutting audio files, built with Nuxt.js and Wavesurfer.js. Features  🎵 Upload and visualize audio files ✂️ Cut audio files with precision 🔍 Zoom in/out for detailed editing 💻 Fully offline capable 📱 Progressive Web App (PWA) for install on devices 🚀 Fast, client-side audio processing  Tech Stack  Nuxt.js - Vue.js framework for server-side rendering and static site generation Wavesurfer.js - Audio visualization Web Audio API - Audio processing

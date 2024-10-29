@@ -1,6 +1,8 @@
 <template>
-  <!-- /////////////////// -->
-  <div
+<div class="min-h-screen bg-gray-50">
+    <!-- Wrap all your existing content in this single root div -->
+    <div class="container mx-auto px-4 py-8">
+      <div
     ref="bottomSheet"
     id="startModal"
     tabindex="-1"
@@ -11,8 +13,6 @@
   >
     <StartGame/>
   </div>
-
-  <!-- /////////////////// -->
     <div class="parent">
   <div class="div1">
     <!-- My card -->
@@ -278,6 +278,8 @@
     </div>
   </div>
 </div>
+    </div>
+  </div>
 </template>
 
 <script setup>

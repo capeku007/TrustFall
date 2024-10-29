@@ -1,4 +1,3 @@
-
 <template>
   <div class="bottom-sheet" ref="bottomSheet">
     <div
@@ -38,16 +37,97 @@
         >
           <span class="block h-1 w-10 bg-gray-300 rounded-full"></span>
         </div>
-        <div @mousedown="dragStart" @touchstart="dragStart" class="grid grid-rows-[7.5%_1fr_15%] min-h-full max-h-full">
-          
-          <div class="p-4 h-full">
-    <!-- Header -->
-    <div class="mb-6 text-center">
-      <h2 class="text-2xl font-bold text-gray-900">Start New Game</h2>
-      <p class="mt-2 text-sm text-gray-600">Choose your scenario and opponent</p>
-    </div>
 
-    <!-- Scenario Selection -->
+        <div @mousedown="dragStart" @touchstart="dragStart" class="grid grid-rows-[7.5%_1fr_15%] min-h-full max-h-full">
+          <div class="p-4 h-full">
+            <!-- Header with Tabs -->
+            <div class="mb-6">
+              <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                  <button
+                    v-for="tab in tabs"
+                    :key="tab.key"
+                    @click="currentTab = tab.key"
+                    :class="[
+                      currentTab === tab.key
+                        ? 'border-purple-500 text-purple-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                      'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'
+                    ]"
+                  >
+                    {{ tab.name }}
+                  </button>
+                </nav>
+              </div>
+            </div>
+
+            <!-- Active Games List -->
+            <div v-if="currentTab === 'active'" class="space-y-4">
+              <div v-if="loadingGames" class="flex justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              </div>
+
+              <div v-else-if="playerGames.length === 0" class="text-center py-8">
+                <p class="text-gray-500">No active games found</p>
+              </div>
+
+              <template v-else>
+  <div 
+    v-for="game in playerGames" 
+    :key="game.id"
+    class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+  >
+    <button 
+      @click="resumeGame(game.id)"
+      class="w-full p-4 text-left"
+    >
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">
+            {{ game.scenario.title }}
+          </h3>
+          <div class="flex items-center mt-1 space-x-2">
+            <span class="text-sm text-gray-500">
+              Round {{ game.currentRound }} of 5
+            </span>
+            <span class="text-sm text-gray-300">•</span>
+            <span class="text-sm text-gray-500">
+              {{ formatDate(game.createdAt) }}
+            </span>
+          </div>
+        </div>
+        <div class="text-right flex items-center space-x-2">
+          <div class="text-center">
+            <p class="text-xs text-gray-500">Your Score</p>
+            <p class="text-lg font-medium text-purple-600">
+              {{ game.players[authStore.user.uid].score }}
+            </p>
+          </div>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            class="h-5 w-5 text-gray-400" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              stroke-linecap="round" 
+              stroke-linejoin="round" 
+              stroke-width="2" 
+              d="M9 5l7 7-7 7" 
+            />
+          </svg>
+        </div>
+      </div>
+    </button>
+  </div>
+</template>
+            </div>
+
+            <!-- New Game Form -->
+            <div v-else-if="currentTab === 'new'" class="space-y-6">
+              <!-- Your existing scenario and opponent selection -->
+                  <!-- Scenario Selection -->
     <div class="mb-6">
       <label class="block text-sm font-medium text-gray-700 mb-2">
         Select Scenario
@@ -134,23 +214,28 @@
     </div>
   </button>
 </div>
-  </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
 
+
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from "../stores/authStore";
 import { useMainStore } from "~/stores/main";
-import { navigateTo } from '#app';
 
-const { scenarios, createNewGame } = useGame();
+// Add router to your component setup
+const router = useRouter();
 const authStore = useAuthStore();
 const mainStore = useMainStore();
 const { hideModal } = useModal();
+const { scenarios, createNewGame, playerGames, loadingGames, fetchPlayerGames } = useGame()
+
 
 // Add loading and error states
 const loading = ref(false);
@@ -159,6 +244,36 @@ const error = ref(null);
 // Game selection state
 const selectedScenario = ref(null);
 const selectedOpponent = ref(null);
+
+const currentTab = ref('active')
+const tabs = [
+  { key: 'active', name: 'Active Games' },
+  { key: 'new', name: 'New Game' }
+]
+
+// Date formatter
+const formatDate = (timestamp) => {
+  const date = new Date(timestamp);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(date);
+};
+
+// Resume game method
+const resumeGame = (gameId) => {
+  hideModal('startModal')
+  router.push(`/game/${gameId}`)
+}
+
+// Load player's games on mount
+onMounted(async () => {
+  if (authStore.user) {
+    await fetchPlayerGames(authStore.user.uid)
+  }
+})
 
 // Computed property for enabling/disabling start button
 const canStart = computed(() => {
@@ -176,7 +291,7 @@ const selectOpponent = (opponentType) => {
   error.value = null; // Clear any previous errors
 };
 
-// Updated start game method with better error handling
+// Update the startGame method
 const startGame = async () => {
   if (!selectedScenario.value || !selectedOpponent.value || loading.value) return;
   
@@ -184,33 +299,41 @@ const startGame = async () => {
   error.value = null;
 
   try {
-    // Check authentication
+    console.log('Starting game creation...'); // Debug log
+    console.log('Auth state:', authStore.user); // Debug log
+
     if (!authStore.user) {
       throw new Error('Please sign in to start a game');
     }
 
-    // Create new game
+    console.log('Creating new game...'); // Debug log
     const game = await createNewGame(selectedScenario.value, selectedOpponent.value);
     
+    console.log('Game created:', game); // Debug log
+
     if (!game || !game.id) {
       throw new Error('Failed to create game');
     }
 
-    // Navigate to the game
-    await navigateTo(`/game/${game.id}`);
+    console.log('Preparing navigation...'); // Debug log
     
-    // Only hide the modal after successful navigation
+    // Wait a moment to ensure database write is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    console.log('Hiding modal...'); // Debug log
     hideModal('startModal');
+    
+    console.log('Navigating to game...'); // Debug log
+    // Use more specific navigation
+    await router.push({
+      path: `/game/${game.id}`,
+      replace: true,
+      force: true
+    });
 
   } catch (err) {
     console.error('Failed to create game:', err);
     error.value = err.message || 'Failed to start game. Please try again.';
-    
-    // If it's an auth error, show sign in modal
-    if (err.message.includes('sign in')) {
-      // Assuming you have a signIn modal
-      showModal('signInModal');
-    }
   } finally {
     loading.value = false;
   }

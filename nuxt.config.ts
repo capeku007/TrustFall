@@ -2,8 +2,7 @@ export default defineNuxtConfig({
   head: {
     meta: [
       { charset: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' }, // Add this line
-      // Other meta tags if needed
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     ],
   },
   devtools: { enabled: true },
@@ -20,24 +19,58 @@ export default defineNuxtConfig({
   aliases: {
     nuxt: "logos:nuxt-icon",
   },
-  plugins: ["~/plugins/vue3-toastify.js",],
-
+  plugins: [
+    "~/plugins/vue3-toastify.js",
+    // Add navigation plugin
+    "~/plugins/navigation.js"
+  ],
   devServer: {
     port: 3002,
   },
-
+  router: {
+    options: {
+      strict: true
+    }
+  },
+  routeRules: {
+    '/game/**': { 
+      ssr: false,
+      security: {
+        skipInvalidTokens: true
+      }
+    },
+    '/gamemenu': {
+      ssr: false
+    }
+  },
   ssr: false,
-
   build: {
     transpile: ['vuetify'],
   },
-
   vite: {
     define: {
       'process.env.DEBUG': false,
     },
+    // Add optimizations for game routes
+    optimizeDeps: {
+      include: ['firebase/app', 'firebase/auth', 'firebase/database']
+    },
+    server: {
+      hmr: {
+        protocol: 'ws'
+      }
+    }
   },
-  
+  experimental: {
+    payloadExtraction: false,
+    asyncContext: true
+  },
+  app: {
+    pageTransition: {
+      name: 'page',
+      mode: 'out-in'
+    }
+  },
   pwa: {
     client: {
       installPrompt: true,
@@ -101,5 +134,3 @@ export default defineNuxtConfig({
     },
   },
 })
-
-

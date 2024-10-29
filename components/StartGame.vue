@@ -234,7 +234,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const mainStore = useMainStore();
 const { hideModal } = useModal();
-const { scenarios, createNewGame, playerGames, loadingGames, fetchPlayerGames } = useGame()
+const { scenarios, createNewGame, playerGames, loadingGames, fetchPlayerGames, cleanupGameListener } = useGame()
 
 
 // Add loading and error states
@@ -299,37 +299,37 @@ const startGame = async () => {
   error.value = null;
 
   try {
-    console.log('Starting game creation...'); // Debug log
-    console.log('Auth state:', authStore.user); // Debug log
-
     if (!authStore.user) {
       throw new Error('Please sign in to start a game');
     }
 
-    console.log('Creating new game...'); // Debug log
+    console.log('Creating new game...'); 
     const game = await createNewGame(selectedScenario.value, selectedOpponent.value);
     
-    console.log('Game created:', game); // Debug log
-
     if (!game || !game.id) {
       throw new Error('Failed to create game');
     }
 
-    console.log('Preparing navigation...'); // Debug log
-    
-    // Wait a moment to ensure database write is complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('Game created successfully:', game.id);
 
-    console.log('Hiding modal...'); // Debug log
+    // Ensure proper cleanup before navigation
+    cleanupGameListener();
+
+    // Hide modal before navigation
     hideModal('startModal');
-    
-    console.log('Navigating to game...'); // Debug log
-    // Use more specific navigation
-    await router.push({
-      path: `/game/${game.id}`,
-      replace: true,
-      force: true
-    });
+
+    console.log('Attempting navigation to game:', game.id);
+
+    // Navigate to the game
+    try {
+      await router.push({
+        path: `/game/${game.id}`
+      });
+    } catch (navError) {
+      console.error('Navigation error:', navError);
+      // If navigation fails, try to clean up the game
+      error.value = 'Failed to start game. Please try again.';
+    }
 
   } catch (err) {
     console.error('Failed to create game:', err);

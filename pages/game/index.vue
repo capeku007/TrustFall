@@ -46,7 +46,6 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { useModal } from '~/composables/useModal'
 
 definePageMeta({
   middleware: ['auth']

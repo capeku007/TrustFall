@@ -1,4 +1,18 @@
 <template>
+  <!-- /////////////////// -->
+  <div
+    ref="bottomSheet"
+    id="startModal"
+    tabindex="-1"
+    data-modal-target="startModal"
+    data-modal-placement="bottom"
+    aria-hidden="true"
+    class="fixed bottom-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full"
+  >
+    <StartGame/>
+  </div>
+
+  <!-- /////////////////// -->
     <div class="parent">
   <div class="div1">
     <!-- My card -->
@@ -141,7 +155,7 @@
             <div class="flex items-center">
               <button
               
-id="open-modal"
+  @click="showModal('startModal')"
                 type="button"
                 class="inline-flex items-center justify-center p-5 text-sm font-semibold text-white bg-green-500 rounded-full hover:bg-green-500 transition-colors shadow-sm hover:shadow"
               >
@@ -274,6 +288,9 @@ import { useAuthStore } from '~/stores/authStore'
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 // pages/gamemenu.vue
+
+
+const { showModal, hideModal } = useModal();
 definePageMeta({
   middleware: ['auth']
 })

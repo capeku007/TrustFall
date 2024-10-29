@@ -133,6 +133,10 @@ const error = ref(null)
 const { auth } = useFirebase()
 const authStore = useAuthStore()
 
+definePageMeta({
+  middleware: ['unauth']
+})
+
 const togglePassword = () => {
   showPassword.value = !showPassword.value
 }

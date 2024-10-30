@@ -1,4 +1,3 @@
-// components/GamePlay.vue
 <template>
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <!-- Loading State -->
@@ -55,7 +54,7 @@
           <p class="mt-2 text-gray-600">{{ currentRound.description }}</p>
 
           <!-- Choice Buttons -->
-          <div v-if="!hasPlayerMadeChoice" class="mt-8 grid grid-cols-2 gap-4">
+          <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" class="mt-8 grid grid-cols-2 gap-4">
             <button
               v-for="(choice, key) in currentRound.choices"
               :key="key"
@@ -83,19 +82,19 @@
 
           <!-- Game End Screen -->
           <div v-if="isGameOver" class="mt-8 text-center">
-    <h2 class="text-2xl font-bold text-gray-900 mb-4">Game Over!</h2>
-    <div class="mb-6">
-      <p class="text-xl">
-        {{ getWinnerMessage() }}
-      </p>
-    </div>
-    <button
-      @click="$emit('game-complete')"
-      class="w-full inline-flex justify-center items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-    >
-      View Game Summary
-    </button>
-  </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Game Over!</h2>
+            <div class="mb-6">
+              <p class="text-xl">
+                {{ getWinnerMessage() }}
+              </p>
+            </div>
+            <button
+              @click="$emit('game-complete')"
+              class="w-full inline-flex justify-center items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+            >
+              View Game Summary
+            </button>
+          </div>
         </div>
       </div>
     </template>
@@ -130,7 +129,16 @@ const error = ref(null)
 // Computed
 const hasPlayerMadeChoice = computed(() => playerChoice.value !== null)
 
+// Check if the current round has already been played
+const hasRoundBeenPlayed = computed(() => {
+  if (!currentGame.value || !authStore.user) return false
+  
+  const currentRoundNumber = currentGame.value.currentRound
+  return !!currentGame.value.players[authStore.user.uid]?.choices?.[currentRoundNumber]
+})
+
 defineEmits(['game-complete'])
+
 const currentRound = computed(() => {
   if (!currentGame.value?.scenario?.rounds) return null
   return currentGame.value.scenario.rounds.find(
@@ -144,7 +152,7 @@ const isGameOver = computed(() => {
 
 // Methods
 const makePlayerChoice = async (choice) => {
-  if (playerChoice.value || !currentGame.value) return
+  if (playerChoice.value || !currentGame.value || hasRoundBeenPlayed.value) return
   
   playerChoice.value = choice
   try {
@@ -173,13 +181,6 @@ const getWinnerMessage = () => {
   return "It's a tie!"
 }
 
-const navigateToSummary = () => {
-  // Option 1: Using navigateTo (preferred in Nuxt 3)
-  navigateTo(`/game/${props.gameId}/summary`)
-  
-  // If that doesn't work, try this alternative:
-  // await router.push(`/game/${props.gameId}/summary`)
-}
 // Lifecycle hooks
 onMounted(async () => {
   isLoading.value = true

@@ -32,12 +32,12 @@ export default defineNuxtConfig({
       strict: true
     }
   },
-  routes: {
-    '/game/:id/summary': {
-      name: 'game-id-summary',
-      component: '~/pages/game/[id]/summary.vue'
-    }
-  },
+  // routes: {
+  //   '/game/:id/summary': {
+  //     name: 'game-id-summary',
+  //     component: '~/pages/game/[id]/summary.vue'
+  //   }
+  // },
   routeRules: {
     '/game/**': { 
       ssr: false,

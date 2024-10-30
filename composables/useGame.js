@@ -239,41 +239,49 @@ export const useGame = () => {
       loading.value = false
     }}
 
-  const fetchPlayerGames = async (userId) => {
-    loadingGames.value = true
-    try {
-      validateDatabaseConnection()
-
-      const gamesRef = dbRef(database, 'games')
-      const playerGamesQuery = query(
-        gamesRef,
-        orderByChild('userId'),
-        equalTo(userId)
-      )
-
-      const snapshot = await get(playerGamesQuery)
-      if (snapshot.exists()) {
-        const games = []
-        snapshot.forEach((childSnapshot) => {
-          const gameData = childSnapshot.val()
-          if (gameData.status === 'active') {
+    const fetchPlayerGames = async (userId) => {
+      loadingGames.value = true
+      try {
+        validateDatabaseConnection()
+    
+        const gamesRef = dbRef(database, 'games')
+        const playerGamesQuery = query(
+          gamesRef,
+          orderByChild('userId'),
+          equalTo(userId)
+        )
+    
+        const snapshot = await get(playerGamesQuery)
+        console.log('Fetched games snapshot:', snapshot.val()) // Log raw snapshot
+        
+        if (snapshot.exists()) {
+          const games = []
+          snapshot.forEach((childSnapshot) => {
+            const gameData = childSnapshot.val()
+            // Remove the status check to get ALL games
             games.push({
               id: childSnapshot.key,
               ...gameData
             })
-          }
-        })
-        playerGames.value = games.sort((a, b) => b.createdAt - a.createdAt)
-      } else {
-        playerGames.value = []
+            console.log('Added game:', {
+              id: childSnapshot.key,
+              status: gameData.status,
+              round: gameData.currentRound
+            })
+          })
+          playerGames.value = games.sort((a, b) => b.createdAt - a.createdAt)
+          console.log('Final playerGames array:', playerGames.value)
+        } else {
+          playerGames.value = []
+          console.log('No games found for user:', userId)
+        }
+      } catch (err) {
+        console.error('Error fetching player games:', err)
+        error.value = 'Failed to load your games'
+      } finally {
+        loadingGames.value = false
       }
-    } catch (err) {
-      console.error('Error fetching player games:', err)
-      error.value = 'Failed to load your games'
-    } finally {
-      loadingGames.value = false
     }
-  }
 
   const generateAiChoice = (gameData, roundId) => {
     return Math.random() < 0.7 ? 'cooperate' : 'betray'

@@ -5,7 +5,9 @@ export default defineNuxtConfig({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     ],
   },
+
   devtools: { enabled: true },
+
   modules: [
     "@nuxtjs/tailwindcss",
     "nuxt-icon",
@@ -13,25 +15,31 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     '@vite-pwa/nuxt',
   ],
+
   pinia: {
     storesDirs: ['./stores/**'],
   },
+
   aliases: {
     nuxt: "logos:nuxt-icon",
   },
+
   plugins: [
     "~/plugins/vue3-toastify.js",
     // Add navigation plugin
     "~/plugins/navigation.js"
   ],
+
   devServer: {
     port: 3002,
   },
+
   router: {
     options: {
       strict: true
     }
   },
+
   // routes: {
   //   '/game/:id/summary': {
   //     name: 'game-id-summary',
@@ -49,10 +57,13 @@ export default defineNuxtConfig({
       ssr: false
     }
   },
+
   ssr: false,
+
   build: {
     transpile: ['vuetify'],
   },
+
   vite: {
     define: {
       'process.env.DEBUG': false,
@@ -67,16 +78,19 @@ export default defineNuxtConfig({
       }
     }
   },
+
   experimental: {
     payloadExtraction: false,
     asyncContext: true
   },
+
   app: {
     pageTransition: {
       name: 'page',
       mode: 'out-in'
     }
   },
+
   pwa: {
     client: {
       installPrompt: true,
@@ -139,4 +153,6 @@ export default defineNuxtConfig({
       type: 'module',
     },
   },
+
+  compatibilityDate: '2024-10-30',
 })

@@ -61,102 +61,71 @@
               </div>
             </div>
 
-            <!-- Active Games List -->
-            <div v-if="currentTab === 'active'" class="space-y-4">
-              <div v-if="loadingGames" class="flex justify-center py-8">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              </div>
+<!-- Active Games List -->
+<div v-if="currentTab === 'active'" class="space-y-4">
+  <div v-if="loadingGames" class="flex justify-center py-8">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+  </div>
 
-              <div v-else-if="playerGames.length === 0" class="text-center py-8">
-                <p class="text-gray-500">No active games found</p>
-              </div>
+  <div v-else-if="activeGames.length === 0" class="text-center py-8">
+    <p class="text-gray-500">No active games found</p>
+  </div>
 
-              <template v-else>
-                <div 
-                  v-for="game in playerGames" 
-                  :key="game.id"
-                  class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div class="w-full p-4">
-                    <div class="flex justify-between items-center">
-                      <div>
-                        <h3 class="text-lg font-medium text-gray-900">
-                          {{ game.scenario.title }}
-                        </h3>
-                        <div class="flex items-center mt-1 space-x-2">
-                          <span 
-                            :class="[
-                              'text-sm px-2 py-0.5 rounded-full',
-                              game.status === 'completed' 
-                                ? 'bg-gray-100 text-gray-600'
-                                : 'bg-green-100 text-green-600'
-                            ]"
-                          >
-                            {{ game.status === 'completed' ? 'Completed' : `Round ${game.currentRound} of 5` }}
-                          </span>
-                          <span class="text-sm text-gray-300">•</span>
-                          <span class="text-sm text-gray-500">
-                            {{ formatDate(game.createdAt) }}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="text-right flex items-center space-x-2">
-                        <div class="text-center">
-                          <p class="text-xs text-gray-500">Your Score</p>
-                          <p class="text-lg font-medium text-purple-600">
-                            {{ game.players[authStore.user.uid].score }}
-                          </p>
-                        </div>
-                        
-                        <!-- Show different buttons based on game status -->
-                        <button 
-                          v-if="game.status === 'completed'"
-                          @click="viewGameSummary(game.id)"
-                          class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
-                        >
-                          <span>View Summary</span>
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            class="h-5 w-5" 
-                            fill="none" 
-                            viewBox="0 0 24 24" 
-                            stroke="currentColor"
-                          >
-                            <path 
-                              stroke-linecap="round" 
-                              stroke-linejoin="round" 
-                              stroke-width="2" 
-                              d="M9 5l7 7-7 7" 
-                            />
-                          </svg>
-                        </button>
-                        <button 
-                          v-else
-                          @click="resumeGame(game.id)"
-                          class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
-                        >
-                          <span>Resume</span>
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            class="h-5 w-5" 
-                            fill="none" 
-                            viewBox="0 0 24 24" 
-                            stroke="currentColor"
-                          >
-                            <path 
-                              stroke-linecap="round" 
-                              stroke-linejoin="round" 
-                              stroke-width="2" 
-                              d="M9 5l7 7-7 7" 
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
+  <template v-else>
+    <div 
+      v-for="game in activeGames" 
+      :key="game.id"
+      class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+    >
+      <div class="w-full p-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">
+              {{ game.scenario.title }}
+            </h3>
+            <div class="flex items-center mt-1 space-x-2">
+              <span class="text-sm px-2 py-0.5 rounded-full bg-green-100 text-green-600">
+                Round {{ game.currentRound }} of 5
+              </span>
+              <span class="text-sm text-gray-300">•</span>
+              <span class="text-sm text-gray-500">
+                {{ formatDate(game.createdAt) }}
+              </span>
             </div>
+          </div>
+          <div class="text-right flex items-center space-x-2">
+            <div class="text-center">
+              <p class="text-xs text-gray-500">Your Score</p>
+              <p class="text-lg font-medium text-purple-600">
+                {{ game.players[authStore.user.uid].score }}
+              </p>
+            </div>
+            <button 
+              @click="resumeGame(game.id)"
+              class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
+            >
+              <span>Resume</span>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                class="h-5 w-5" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round" 
+                  stroke-width="2" 
+                  d="M9 5l7 7-7 7" 
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
 
             <!-- New Game Form -->
             <div v-else-if="currentTab === 'new'" class="space-y-6">
@@ -250,6 +219,73 @@
                 </button>
               </div>
             </div>
+
+            <!-- Completed Games List -->
+            <div v-else-if="currentTab === 'completed'" class="space-y-4">
+              <div v-if="loadingGames" class="flex justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              </div>
+
+              <div v-else-if="completedGames.length === 0" class="text-center py-8">
+                <p class="text-gray-500">No completed games found</p>
+              </div>
+
+              <template v-else>
+                <div 
+                  v-for="game in completedGames" 
+                  :key="game.id"
+                  class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div class="w-full p-4">
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <h3 class="text-lg font-medium text-gray-900">
+                          {{ game.scenario.title }}
+                        </h3>
+                        <div class="flex items-center mt-1 space-x-2">
+                          <span class="text-sm px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            Completed
+                          </span>
+                          <span class="text-sm text-gray-300">•</span>
+                          <span class="text-sm text-gray-500">
+                            {{ formatDate(game.createdAt) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="text-right flex items-center space-x-2">
+                        <div class="text-center">
+                          <p class="text-xs text-gray-500">Final Score</p>
+                          <p class="text-lg font-medium text-purple-600">
+                            {{ game.players[authStore.user.uid].score }}
+                          </p>
+                        </div>
+                        <button 
+                          @click="viewGameSummary(game.id)"
+                          class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
+                        >
+                          <span>View Summary</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            class="h-5 w-5" 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path 
+                              stroke-linecap="round" 
+                              stroke-linejoin="round" 
+                              stroke-width="2" 
+                              d="M9 5l7 7-7 7" 
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
           </div>
         </div>
       </div>
@@ -293,6 +329,7 @@ const swipeThreshold = 80;
 // Constants
 const tabs = [
   { key: 'active', name: 'Active Games' },
+  { key: 'completed', name: 'Completed' },
   { key: 'new', name: 'New Game' }
 ];
 // Computed
@@ -337,15 +374,25 @@ const resumeGame = async (gameId) => {
   }
 };
 
+// Computed properties to filter games
+const activeGames = computed(() => {
+  return playerGames.value.filter(game => game.status == 'active')
+})
+
+const completedGames = computed(() => {
+  return playerGames.value.filter(game => game.status === 'completed')
+})
+
+// View summary method
 const viewGameSummary = async (gameId) => {
   try {
-    hideModal('startModal');
-    await router.push(`/game/${gameId}/summary`);
+    hideModal('startModal')
+    await router.push(`/game/${gameId}/summary`)
   } catch (err) {
-    console.error('Error viewing game summary:', err);
-    error.value = 'Failed to view game summary. Please try again.';
+    console.error('Error viewing game summary:', err)
+    error.value = 'Failed to view game summary'
   }
-};
+}
 
 const selectScenario = (scenarioId) => {
   selectedScenario.value = scenarioId;

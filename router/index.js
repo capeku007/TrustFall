@@ -20,14 +20,14 @@ const routes = [
     name: 'game',
     component: () => import('~/pages/game/[id].vue'),
     meta: { requiresAuth: true },
-    props: true
+    props: true,
   },
   {
     path: '/game/:id/summary',
     name: 'game-summary',
-    component: () => import('~/components/GameSummary.vue'),
+    component: () => import('~/pages/game/[id]/summary.vue'),
     meta: { requiresAuth: true },
-    props: true
+    props: true // Changed to true instead of the route function
   }
 ]
 
@@ -49,12 +49,25 @@ export default function (nuxtApp) {
       auth: authStore.isAuthenticated
     })
 
-    // Clean up game listener when leaving game routes
+    // Clean up game listener when leaving game routes completely
     if (from.path.startsWith('/game/') && !to.path.startsWith('/game/')) {
       cleanupGameListener()
     }
 
-    // Handle game routes
+    // Handle protected routes first
+    if (to.meta?.requiresAuth && !authStore.isAuthenticated) {
+      console.log('Unauthorized access, redirecting to home')
+      next('/')
+      return
+    }
+
+    // Redirect authenticated users from home
+    if (to.path === '/' && authStore.isAuthenticated) {
+      next('/gamemenu')
+      return
+    }
+
+    // Handle game routes (including summary)
     if (to.path.startsWith('/game/')) {
       if (!authStore.isAuthenticated) {
         console.log('Unauthorized game access, redirecting to home')
@@ -62,7 +75,6 @@ export default function (nuxtApp) {
         return
       }
 
-      // Verify game exists and belongs to user
       const gameId = to.params.id
       if (gameId) {
         try {
@@ -82,38 +94,31 @@ export default function (nuxtApp) {
             next('/gamemenu')
             return
           }
+
+          // If all checks pass, continue
+          next()
         } catch (error) {
           console.error('Error checking game:', error)
           next('/gamemenu')
           return
         }
-      }
-
-      next()
-      return
-    }
-
-    // Handle protected routes
-    if (to.meta?.requiresAuth) {
-      if (!authStore.isAuthenticated) {
-        next('/')
+      } else {
+        next('/gamemenu')
         return
       }
+    } else {
+      next()
     }
-
-    // Redirect authenticated users from home
-    if (to.path === '/' && authStore.isAuthenticated) {
-      next('/gamemenu')
-      return
-    }
-
-    next()
   })
 
-  // Add error handling for navigation failures
+  // Enhanced error handling for navigation failures
   router.onError((error, to) => {
     console.error('Navigation error:', error)
-    if (to.path.startsWith('/game/')) {
+    const authStore = useAuthStore()
+    
+    if (!authStore.isAuthenticated) {
+      router.push('/')
+    } else {
       router.push('/gamemenu')
     }
   })

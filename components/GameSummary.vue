@@ -139,44 +139,49 @@
   </template>
   
   <script setup>
-  import { computed } from 'vue'
+  import { ref, computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { useGame } from '~/composables/useGame'
+  import { useAuthStore } from '~/stores/authStore'
   
   const router = useRouter()
   const { currentGame } = useGame()
+  const authStore = useAuthStore()
   
-  // Computed
+  // Computed properties with proper null checking
   const playerScore = computed(() => {
-    if (!currentGame.value) return 0
-    return currentGame.value.players[currentGame.value.players.human].score
+    if (!currentGame.value?.players || !authStore.user?.uid) return 0
+    return currentGame.value.players[authStore.user.uid]?.score || 0
   })
   
   const aiScore = computed(() => {
-    if (!currentGame.value) return 0
-    return currentGame.value.players.ai.score
+    if (!currentGame.value?.players?.ai) return 0
+    return currentGame.value.players.ai?.score || 0
   })
   
   const rounds = computed(() => {
-    if (!currentGame.value) return []
+    if (!currentGame.value?.scenario?.rounds) return []
     return currentGame.value.scenario.rounds
   })
   
-  // Methods
+  // Methods with null checking
   const getPlayerChoice = (roundId) => {
-    if (!currentGame.value) return null
-    return currentGame.value.players[currentGame.value.players.human].choices[roundId]
+    if (!currentGame.value?.players || !authStore.user?.uid) return null
+    return currentGame.value.players[authStore.user.uid]?.choices?.[roundId] || null
   }
   
   const getAIChoice = (roundId) => {
-    if (!currentGame.value) return null
-    return currentGame.value.players.ai.choices[roundId]
+    if (!currentGame.value?.players?.ai?.choices) return null
+    return currentGame.value.players.ai.choices[roundId] || null
   }
   
   const getRoundScore = (roundId) => {
-    // Calculate score for specific round based on choices
     const playerChoice = getPlayerChoice(roundId)
     const aiChoice = getAIChoice(roundId)
+    
+    if (!playerChoice || !aiChoice) {
+      return { playerScore: 0, aiScore: 0 }
+    }
     
     if (playerChoice === 'cooperate' && aiChoice === 'cooperate') {
       return { playerScore: 3, aiScore: 3 }
@@ -189,16 +194,12 @@
     }
   }
   
-  const getScoreDescription = (score) => {
-    if (score >= 20) return 'Masterful Performance!'
-    if (score >= 15) return 'Well Played!'
-    if (score >= 10) return 'Good Game!'
-    return 'Better Luck Next Time'
-  }
-  
   const calculateCooperationRate = () => {
-    if (!currentGame.value) return 0
-    const playerChoices = Object.values(currentGame.value.players[currentGame.value.players.human].choices)
+    if (!currentGame.value?.players || !authStore.user?.uid) return 0
+    const choices = currentGame.value.players[authStore.user.uid]?.choices || {}
+    const playerChoices = Object.values(choices)
+    if (playerChoices.length === 0) return 0
+    
     const cooperateCount = playerChoices.filter(choice => choice === 'cooperate').length
     return Math.round((cooperateCount / playerChoices.length) * 100)
   }
@@ -217,6 +218,13 @@
     }
     
     return bestRound
+  }
+  
+  const getScoreDescription = (score) => {
+    if (score >= 20) return 'Masterful Performance!'
+    if (score >= 15) return 'Well Played!'
+    if (score >= 10) return 'Good Game!'
+    return 'Better Luck Next Time'
   }
   
   const playAgain = () => {

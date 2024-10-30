@@ -137,6 +137,8 @@ definePageMeta({
   middleware: ['unauth']
 })
 
+
+
 const togglePassword = () => {
   showPassword.value = !showPassword.value
 }
@@ -220,6 +222,19 @@ onMounted(() => {
   authStore.init()
 })
 </script>
+
+
+<style>
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.15s;
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+</style>
 
 <style scoped>
 .animate-spin {

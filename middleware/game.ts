@@ -1,27 +1,16 @@
 // middleware/game.js
-export default defineNuxtRouteMiddleware(async (to) => {
-  const authStore = useAuthStore()
-  const { currentGame, fetchGame } = useGame()
-  
-  // Only handle game routes
-  if (!to.path.startsWith('/game/')) {
-    return
-  }
-
-  // Check authentication
-  if (!authStore.isAuthenticated) {
-    return navigateTo('/')
-  }
-
-  // Verify game exists for specific game routes
-  if (to.params.id) {
+export default defineNuxtRouteMiddleware(async (to, from) => {
+  if (to.path.includes('/game/')) {
+    const { fetchGame } = useGame()
+    const gameId = to.params.id
+    
     try {
-      await fetchGame(to.params.id)
-      if (!currentGame.value) {
+      const game = await fetchGame(gameId)
+      if (!game) {
         return navigateTo('/gamemenu')
       }
     } catch (error) {
-      console.error('Error loading game:', error)
+      console.error('Game middleware error:', error)
       return navigateTo('/gamemenu')
     }
   }

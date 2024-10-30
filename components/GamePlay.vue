@@ -1,3 +1,4 @@
+// components/GamePlay.vue
 <template>
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <!-- Loading State -->
@@ -31,15 +32,6 @@
               <p class="mt-1 text-sm text-gray-500">
                 Round {{ currentGame.currentRound }} of 5
               </p>
-            </div>
-            <!-- Only show scores at game end -->
-            <div v-if="isGameOver" class="flex items-center space-x-4">
-              <div class="text-right">
-                <p class="text-sm font-medium text-gray-900">Final Scores</p>
-                <p class="text-2xl font-bold text-purple-600">
-                  You: {{ playerScore }} | AI: {{ aiScore }}
-                </p>
-              </div>
             </div>
           </div>
           
@@ -88,58 +80,22 @@
               <p class="mt-1 text-sm text-gray-500 text-center">{{ choice.description }}</p>
             </button>
           </div>
-        </div>
 
-        <!-- Round Results -->
-        <div v-if="showingResults" class="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Round Results</h2>
-          
-          <div class="grid grid-cols-2 gap-8">
-            <!-- Player Choice -->
-            <div class="text-center">
-              <p class="text-sm font-medium text-gray-500 mb-2">Your Choice</p>
-              <div class="inline-flex items-center justify-center w-16 h-16 rounded-full mb-2"
-                :class="{
-                  'bg-purple-100': playerChoice === 'cooperate',
-                  'bg-red-100': playerChoice === 'betray'
-                }"
-              >
-                <span :class="playerChoice === 'cooperate' ? 'text-purple-600' : 'text-red-600'">
-                  {{ playerChoice === 'cooperate' ? '✓' : '✗' }}
-                </span>
-              </div>
-              <p class="font-medium text-gray-900">
-                {{ currentRound?.choices[playerChoice]?.text }}
-              </p>
-            </div>
-
-            <!-- AI Choice -->
-            <div class="text-center">
-              <p class="text-sm font-medium text-gray-500 mb-2">AI's Choice</p>
-              <div class="inline-flex items-center justify-center w-16 h-16 rounded-full mb-2"
-                :class="{
-                  'bg-purple-100': aiChoice === 'cooperate',
-                  'bg-red-100': aiChoice === 'betray'
-                }"
-              >
-                <span :class="aiChoice === 'cooperate' ? 'text-purple-600' : 'text-red-600'">
-                  {{ aiChoice === 'cooperate' ? '✓' : '✗' }}
-                </span>
-              </div>
-              <p class="font-medium text-gray-900">
-                {{ currentRound?.choices[aiChoice]?.text }}
-              </p>
-            </div>
-          </div>
-
-          <!-- Continue/Summary Button -->
-          <button
-            @click="isGameOver ? showGameSummary() : proceedToNextRound()"
-            class="mt-6 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white"
-            :class="isGameOver ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'"
-          >
-            {{ isGameOver ? 'View Game Summary' : 'Continue to Next Round' }}
-          </button>
+          <!-- Game End Screen -->
+          <div v-if="isGameOver" class="mt-8 text-center">
+    <h2 class="text-2xl font-bold text-gray-900 mb-4">Game Over!</h2>
+    <div class="mb-6">
+      <p class="text-xl">
+        {{ getWinnerMessage() }}
+      </p>
+    </div>
+    <button
+      @click="$emit('game-complete')"
+      class="w-full inline-flex justify-center items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+    >
+      View Game Summary
+    </button>
+  </div>
         </div>
       </div>
     </template>
@@ -152,6 +108,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useGame } from '~/composables/useGame'
 import { useAuthStore } from '~/stores/authStore'
 
+const props = defineProps({
+  gameId: {
+    type: String,
+    required: true
+  }
+})
+
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -161,13 +124,13 @@ const { currentGame, error: gameError, loading: gameLoading, fetchGame, makeChoi
 const playerChoice = ref(null)
 const aiChoice = ref(null)
 const showingResults = ref(false)
-const roundScore = ref({ playerScore: 0, aiScore: 0 })
 const isLoading = ref(true)
 const error = ref(null)
 
 // Computed
 const hasPlayerMadeChoice = computed(() => playerChoice.value !== null)
 
+defineEmits(['game-complete'])
 const currentRound = computed(() => {
   if (!currentGame.value?.scenario?.rounds) return null
   return currentGame.value.scenario.rounds.find(
@@ -176,17 +139,7 @@ const currentRound = computed(() => {
 })
 
 const isGameOver = computed(() => {
-  return currentGame.value?.currentRound === 5 && showingResults.value
-})
-
-const playerScore = computed(() => {
-  if (!currentGame.value?.players || !authStore.user?.uid) return 0
-  return currentGame.value.players[authStore.user.uid]?.score || 0
-})
-
-const aiScore = computed(() => {
-  if (!currentGame.value?.players?.ai) return 0
-  return currentGame.value.players.ai.score || 0
+  return currentGame.value?.currentRound === 5
 })
 
 // Methods
@@ -195,19 +148,15 @@ const makePlayerChoice = async (choice) => {
   
   playerChoice.value = choice
   try {
-    const result = await makeChoice(
-      route.params.id,
+    await makeChoice(
+      props.gameId,
       currentGame.value.currentRound,
       choice
     )
     
-    if (result?.players?.ai?.choices) {
-      aiChoice.value = result.players.ai.choices[currentGame.value.currentRound]
-      roundScore.value = {
-        playerScore: (result.players[authStore.user.uid]?.score || 0) - (playerScore.value || 0),
-        aiScore: (result.players.ai?.score || 0) - (aiScore.value || 0)
-      }
-      showingResults.value = true
+    if (!isGameOver.value) {
+      playerChoice.value = null
+      aiChoice.value = null
     }
   } catch (err) {
     console.error('Error making choice:', err)
@@ -215,27 +164,33 @@ const makePlayerChoice = async (choice) => {
   }
 }
 
-const proceedToNextRound = () => {
-  playerChoice.value = null
-  aiChoice.value = null
-  showingResults.value = false
+const getWinnerMessage = () => {
+  const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0
+  const aiScore = currentGame.value?.players?.ai?.score || 0
+  
+  if (playerScore > aiScore) return "Congratulations! You Won! 🎉"
+  if (aiScore > playerScore) return "AI Wins! Better luck next time!"
+  return "It's a tie!"
 }
 
-const showGameSummary = () => {
-  router.push(`/game/${route.params.id}/summary`)
+const navigateToSummary = () => {
+  // Option 1: Using navigateTo (preferred in Nuxt 3)
+  navigateTo(`/game/${props.gameId}/summary`)
+  
+  // If that doesn't work, try this alternative:
+  // await router.push(`/game/${props.gameId}/summary`)
 }
-
 // Lifecycle hooks
 onMounted(async () => {
   isLoading.value = true
   error.value = null
 
   try {
-    if (!route.params.id) {
+    if (!props.gameId) {
       throw new Error('No game ID provided')
     }
 
-    const game = await fetchGame(route.params.id)
+    const game = await fetchGame(props.gameId)
     if (!game) {
       throw new Error('Game not found')
     }

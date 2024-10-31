@@ -2,14 +2,19 @@
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <!-- Loading State -->
     <div v-if="isLoading" class="flex items-center justify-center min-h-screen">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"
+      ></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center min-h-screen">
+    <div
+      v-else-if="error"
+      class="flex items-center justify-center min-h-screen"
+    >
       <div class="text-center p-6 bg-white rounded-lg shadow-sm max-w-md">
         <p class="text-red-600">{{ error }}</p>
-        <button 
+        <button
           @click="router.push('/gamemenu')"
           class="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg"
         >
@@ -26,19 +31,19 @@
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold text-gray-900">
-                {{ currentGame.scenario?.title || 'Loading...' }}
+                {{ currentGame.scenario?.title || "Loading..." }}
               </h1>
               <p class="mt-1 text-sm text-gray-500">
                 Round {{ currentGame.currentRound }} of 5
               </p>
             </div>
           </div>
-          
+
           <!-- Progress Bar -->
           <div class="mt-4">
             <div class="h-2 bg-gray-200 rounded-full">
-              <div 
-                class="h-2 bg-purple-600 rounded-full transition-all duration-500" 
+              <div
+                class="h-2 bg-purple-600 rounded-full transition-all duration-500"
                 :style="{ width: `${(currentGame.currentRound / 5) * 100}%` }"
               ></div>
             </div>
@@ -49,12 +54,20 @@
       <!-- Main Game Area -->
       <div class="max-w-3xl mx-auto">
         <!-- Round Information -->
-        <div v-if="currentRound && !showingResults" class="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 class="text-xl font-semibold text-gray-900">{{ currentRound.title }}</h2>
+        <div
+          v-if="currentRound && !showingResults"
+          class="bg-white rounded-lg shadow-sm p-6 mb-6"
+        >
+          <h2 class="text-xl font-semibold text-gray-900">
+            {{ currentRound.title }}
+          </h2>
           <p class="mt-2 text-gray-600">{{ currentRound.description }}</p>
 
           <!-- Choice Buttons -->
-          <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" class="mt-8 grid grid-cols-2 gap-4">
+          <div
+            v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed"
+            class="mt-8 grid grid-cols-2 gap-4"
+          >
             <button
               v-for="(choice, key) in currentRound.choices"
               :key="key"
@@ -62,21 +75,30 @@
               :disabled="playerChoice !== null"
               class="flex flex-col items-center p-6 border-2 rounded-lg transition-colors"
               :class="{
-                'border-purple-500 bg-purple-50': playerChoice === key && key === 'cooperate',
-                'border-red-500 bg-red-50': playerChoice === key && key === 'betray',
-                'border-gray-200 hover:border-purple-500 hover:bg-purple-50': playerChoice !== key
+                'border-purple-500 bg-purple-50':
+                  playerChoice === key && key === 'cooperate',
+                'border-red-500 bg-red-50':
+                  playerChoice === key && key === 'betray',
+                'border-gray-200 hover:border-purple-500 hover:bg-purple-50':
+                  playerChoice !== key,
               }"
             >
-              <div 
+              <div
                 class="w-12 h-12 rounded-full flex items-center justify-center mb-3"
                 :class="key === 'cooperate' ? 'bg-purple-100' : 'bg-red-100'"
               >
-                <span :class="key === 'cooperate' ? 'text-purple-600' : 'text-red-600'">
-                  {{ key === 'cooperate' ? '✓' : '✗' }}
+                <span
+                  :class="
+                    key === 'cooperate' ? 'text-purple-600' : 'text-red-600'
+                  "
+                >
+                  {{ key === "cooperate" ? "✓" : "✗" }}
                 </span>
               </div>
               <h3 class="font-semibold text-gray-900">{{ choice.text }}</h3>
-              <p class="mt-1 text-sm text-gray-500 text-center">{{ choice.description }}</p>
+              <p class="mt-1 text-sm text-gray-500 text-center">
+                {{ choice.description }}
+              </p>
             </button>
           </div>
 
@@ -102,89 +124,138 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useGame } from '~/composables/useGame'
-import { useAuthStore } from '~/stores/authStore'
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useGame } from "~/composables/useGame";
+import { useAuthStore } from "~/stores/authStore";
 
 const props = defineProps({
   gameId: {
     type: String,
-    required: true
-  }
-})
+    required: true,
+  },
+});
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-const { currentGame, error: gameError, loading: gameLoading, fetchGame, makeChoice, cleanupGameListener } = useGame()
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+const {
+  currentGame,
+  error: gameError,
+  loading: gameLoading,
+  fetchGame,
+  makeChoice,
+  cleanupGameListener,
+} = useGame();
 
 // State
-const playerChoice = ref(null)
-const aiChoice = ref(null)
-const showingResults = ref(false)
-const isLoading = ref(true)
-const error = ref(null)
+const playerChoice = ref(null);
+const aiChoice = ref(null);
+const showingResults = ref(false);
+const isLoading = ref(true);
+const error = ref(null);
 
 // Computed
-const hasPlayerMadeChoice = computed(() => playerChoice.value !== null)
+const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
 
 // Check if the current round has already been played
 const hasRoundBeenPlayed = computed(() => {
-  if (!currentGame.value || !authStore.user) return false
+  if (!currentGame.value || !authStore.user) return false;
   
-  const currentRoundNumber = currentGame.value.currentRound
-  return !!currentGame.value.players[authStore.user.uid]?.choices?.[currentRoundNumber]
-})
-
-defineEmits(['game-complete'])
+  const currentRoundNumber = currentGame.value.currentRound;
+  const hasPlayed = !!currentGame.value.players[authStore.user.uid]?.choices?.[currentRoundNumber];
+  
+  // Also return true if we've made the final choice
+  if (currentRoundNumber === 5 && hasPlayed) {
+    return true;
+  }
+  
+  return hasPlayed;
+});
 
 const currentRound = computed(() => {
-  if (!currentGame.value?.scenario?.rounds) return null
+  if (!currentGame.value?.scenario?.rounds) return null;
   return currentGame.value.scenario.rounds.find(
-    round => round.id === currentGame.value.currentRound
-  )
-})
+    (round) => round.id === currentGame.value.currentRound
+  );
+});
 
 const isGameOver = computed(() => {
-  return currentGame.value?.currentRound === 5
-})
+  if (!currentGame.value) return false;
+  const currentRoundNumber = currentGame.value.currentRound;
+  const hasPlayedFinalRound = !!currentGame.value.players[authStore.user.uid]?.choices?.[5];
+  
+  return currentRoundNumber === 5 && hasPlayedFinalRound;
+});
 
+const emit = defineEmits(["game-complete"]);
 // Methods
 const makePlayerChoice = async (choice) => {
-  if (playerChoice.value || !currentGame.value || hasRoundBeenPlayed.value) return
+  if (playerChoice.value || !currentGame.value || hasRoundBeenPlayed.value) return;
   
-  playerChoice.value = choice
+  const currentRoundNumber = currentGame.value.currentRound;
+  if (currentRoundNumber > 5) return; // Prevent choices after round 5
+  
+  playerChoice.value = choice;
+  
   try {
+    const gameRef = props.gameId;
+    const isFinalRound = currentRoundNumber === 5;
+
     await makeChoice(
-      props.gameId,
-      currentGame.value.currentRound,
+      gameRef,
+      currentRoundNumber,
       choice
-    )
+    );
     
-    if (!isGameOver.value) {
-      playerChoice.value = null
-      aiChoice.value = null
+    if (isFinalRound) {
+      showingResults.value = true;
+      await new Promise(resolve => setTimeout(resolve, 7000));
+      if (isComponentMounted.value) {
+        emit('game-complete');
+      }
+    } else {
+      playerChoice.value = null;
+      aiChoice.value = null;
     }
   } catch (err) {
-    console.error('Error making choice:', err)
-    error.value = err.message
+    console.error('Error making choice:', err);
+    error.value = err.message;
   }
 }
 
 const getWinnerMessage = () => {
-  const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0
-  const aiScore = currentGame.value?.players?.ai?.score || 0
-  
-  if (playerScore > aiScore) return "Congratulations! You Won! 🎉"
-  if (aiScore > playerScore) return "AI Wins! Better luck next time!"
-  return "It's a tie!"
-}
+  const playerScore =
+    currentGame.value?.players[authStore.user.uid]?.score || 0;
+  const aiScore = currentGame.value?.players?.ai?.score || 0;
 
-// Lifecycle hooks
+  if (playerScore > aiScore) return "Congratulations! You Won! 🎉";
+  if (aiScore > playerScore) return "AI Wins! Better luck next time!";
+  return "It's a tie!";
+};
+
+
+onUnmounted(() => {
+  isComponentMounted.value = false
+  cleanupGameListener()
+})
+
+// Modified watcher to respect component lifecycle
+watch(
+  () => currentGame.value?.currentRound,
+  (newRound) => {
+    if (newRound === 6 && isComponentMounted.value) {
+      emit('game-complete')
+    }
+  }
+)
+
+const isComponentMounted = ref(true)
+
 onMounted(async () => {
   isLoading.value = true
   error.value = null
+  isComponentMounted.value = true
 
   try {
     if (!props.gameId) {
@@ -203,15 +274,15 @@ onMounted(async () => {
   } catch (err) {
     console.error('Error loading game:', err)
     error.value = err.message
-    setTimeout(() => {
-      router.push('/gamemenu')
-    }, 2000)
+    if (isComponentMounted.value) {
+      setTimeout(() => {
+        router.push('/gamemenu')
+      }, 2000)
+    }
   } finally {
-    isLoading.value = false
+    if (isComponentMounted.value) {
+      isLoading.value = false
+    }
   }
-})
-
-onUnmounted(() => {
-  cleanupGameListener()
 })
 </script>

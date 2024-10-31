@@ -302,10 +302,10 @@ export const useGame = () => {
   const makeChoice = async (gameId, roundId, choice) => {
     loading.value = true
     error.value = null
-
+  
     try {
       validateDatabaseConnection()
-
+  
       if (!auth.currentUser) {
         throw new Error('User must be authenticated')
       }
@@ -316,36 +316,37 @@ export const useGame = () => {
       if (!snapshot.exists()) {
         throw new Error('Game not found')
       }
-
+  
       const gameData = snapshot.val()
-
+  
       if (gameData.currentRound !== roundId) {
         throw new Error('Invalid round')
       }
-
+  
       // Record player's choice
       await set(child(gameRef, `players/${auth.currentUser.uid}/choices/${roundId}`), choice)
-
+  
       // Generate and record AI's choice
       const aiChoice = generateAiChoice(gameData, roundId)
       await set(child(gameRef, `players/ai/choices/${roundId}`), aiChoice)
-
+  
       // Calculate and update scores
       const scores = calculateScores(choice, aiChoice)
       await set(child(gameRef, `players/${auth.currentUser.uid}/score`), 
         gameData.players[auth.currentUser.uid].score + scores.playerScore)
       await set(child(gameRef, `players/ai/score`), 
         gameData.players.ai.score + scores.aiScore)
-
-      // Advance to next round or end game
+  
+      // After round 5, advance to hidden round 6 and mark as completed
       if (roundId === 5) {
+        await set(child(gameRef, 'currentRound'), 6)
         await set(child(gameRef, 'status'), 'completed')
       } else {
         await set(child(gameRef, 'currentRound'), roundId + 1)
       }
-
+  
       return currentGame.value
-
+  
     } catch (err) {
       error.value = err.message
       console.error('Error making choice:', err)

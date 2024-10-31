@@ -232,6 +232,6 @@
   }
   
   const goHome = () => {
-    router.push('/')
+    router.push('/gamemenu')
   }
   </script>

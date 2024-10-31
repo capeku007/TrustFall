@@ -1,5 +1,17 @@
 <template>
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div
+    ref="bottomSheet"
+    id="startModal"
+    tabindex="-1"
+    data-modal-target="startModal"
+    data-modal-placement="bottom"
+    aria-hidden="true"
+    class="fixed bottom-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full"
+  >
+    <StartGame/>
+  </div>
+
     <div class="max-w-3xl mx-auto">
       <!-- Summary Card -->
       <div class="bg-white rounded-lg shadow-sm p-6">
@@ -98,7 +110,7 @@
         <!-- Action Buttons -->
         <div class="flex space-x-4">
           <button
-            @click="playAgain"
+  @click="showModal('startModal')"
             class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
           >
             Play Again
@@ -136,7 +148,10 @@ const authStore = useAuthStore()
 onMounted(async () => {
   await fetchGame(props.gameId)
 })
-
+const { showModal, hideModal } = useModal();
+definePageMeta({
+  middleware: ['auth']
+})
 // Computed properties
 const playerScore = computed(() => {
   if (!currentGame.value?.players || !authStore.user?.uid) return 0

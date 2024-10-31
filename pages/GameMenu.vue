@@ -1,7 +1,7 @@
 <template>
 <div class="min-h-screen bg-gray-50">
     <!-- Wrap all your existing content in this single root div -->
-    <div class="container mx-auto px-4 py-8">
+    <div class="container mx-auto px-4 py-8 rounded-2xl">
       <div
     ref="bottomSheet"
     id="startModal"
@@ -298,8 +298,6 @@ definePageMeta({
 })
 
 const showInfo = ref(false)
-const selectedOpponent = ref('')
-const selectedScenario = ref('')
 
 const showInfoTimed = () => {
 showInfo.value = true
@@ -316,53 +314,6 @@ const topPlayers = ref([
 { id: 4, name: "Player 4", score: 2000, rank: 4 },
 { id: 5, name: "Player 5", score: 1900, rank: 5 },
 ])
-
-// Game scenarios data
-const scenarios = ref([
-{
-id: 'classic',
-title: 'Classic Prison',
-description: 'The original prisoner\'s dilemma scenario',
-image: '/assets/prison.png', // Updated path
-payoff: {
-bothCooperate: [3, 3],
-bothBetray: [1, 1],
-betrayCooperate: [5, 0],
-}
-},
-{
-id: 'business',
-title: 'Business Deal',
-description: 'Two companies deciding whether to honor or break a contract',
-image: '/assets/business.png', // Updated path
-payoff: {
-bothCooperate: [4, 4],
-bothBetray: [2, 2],
-betrayCooperate: [6, 1],
-}
-},
-{
-id: 'environment',
-title: 'Environmental Crisis',
-description: 'Countries deciding whether to reduce emissions',
-image: '/assets/environment.png', // Updated path
-payoff: {
-bothCooperate: [5, 5],
-bothBetray: [0, 0],
-betrayCooperate: [7, -1],
-}
-},
-])
-
-const canStartGame = computed(() => {
-return selectedOpponent.value && selectedScenario.value
-})
-
-const personalityDescription = "A strategic player who adapts to opponents' behavior patterns and makes calculated decisions based on past interactions."
-
-
-
-
 
 </script>
 <style scoped>

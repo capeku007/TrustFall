@@ -48,7 +48,8 @@
 import { useRouter } from 'vue-router'
 
 definePageMeta({
-  middleware: ['auth']
+  middleware: ['auth'],
+  layout: "ingame",
 })
 
 const router = useRouter()

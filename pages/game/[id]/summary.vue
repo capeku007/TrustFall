@@ -24,6 +24,10 @@
   import { useRoute, useRouter } from 'vue-router'
   import { useGame } from '~/composables/useGame'
   
+definePageMeta({
+  middleware: ['auth'],
+  layout: "ingame",
+})
   const route = useRoute()
   const router = useRouter()
   const { currentGame, fetchGame } = useGame()

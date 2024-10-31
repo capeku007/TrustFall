@@ -14,6 +14,10 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 
+definePageMeta({
+  middleware: ['auth'],
+  layout: "ingame",
+})
 const route = useRoute()
 const showingSummary = ref(false)
 </script>

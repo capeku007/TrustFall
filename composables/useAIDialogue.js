@@ -1,19 +1,14 @@
-import { ref } from 'vue'
+import { useNarrativeGenerator } from './useNarrativeGenerator'
 
 export const useAIDialogue = () => {
   const isGenerating = ref(false)
   const error = ref(null)
+  const narrativeGenerator = useNarrativeGenerator()
 
   const generateDMNarration = async (context) => {
     try {
       isGenerating.value = true
-      
-      const response = await $fetch('/api/dialogue/dm-narration', {
-        method: 'POST',
-        body: { context }
-      })
-
-      return response.lines
+      return narrativeGenerator.generateDMNarration(context)
     } catch (err) {
       console.error('Error in DM narration:', err)
       return [
@@ -29,42 +24,13 @@ export const useAIDialogue = () => {
   const generateOutcomeNarrative = async (context) => {
     try {
       isGenerating.value = true
-
-      const response = await $fetch('/api/dialogue/outcome', {
-        method: 'POST',
-        body: { context }
-      })
-
-      return response.narrative
+      return narrativeGenerator.generateOutcomeNarrative(context)
     } catch (err) {
       console.error('Error in outcome narrative:', err)
       return determineBackupNarrative(context)
     } finally {
       isGenerating.value = false
     }
-  }
-
-  const determineBackupNarrative = (context) => {
-    const { playerChoice, aiChoice, rollSuccess } = context
-    
-    if (playerChoice === 'cooperate' && aiChoice === 'cooperate') {
-      return rollSuccess 
-        ? "Your mutual trust yields a perfect outcome."
-        : "Despite good intentions, the execution is flawed."
-    }
-    if (playerChoice === 'cooperate' && aiChoice === 'betray') {
-      return rollSuccess
-        ? "Though betrayed, you maintain your dignity."
-        : "Your trust was misplaced and costly."
-    }
-    if (playerChoice === 'betray' && aiChoice === 'cooperate') {
-      return rollSuccess
-        ? "Your betrayal is executed flawlessly."
-        : "Your attempted betrayal falters."
-    }
-    return rollSuccess
-      ? "In the chaos of mutual betrayal, you gain the upper hand."
-      : "Your plans collapse as trust shatters completely."
   }
 
   return {

@@ -349,6 +349,210 @@ export const useGame = () => {
           }
         }
       ]
+    },
+    {
+      id: 'rico-investigation',
+      title: 'Operation Paper Trail',
+      description: 'As an undercover agent investigating a powerful criminal enterprise, you must gather evidence while maintaining your cover. Your handler might be compromised, and every choice could expose your true identity.',
+      image: '/scenarios/rico-investigation.jpg',
+      dmPoints: 0,
+      rounds: [
+        {
+          id: 1,
+          title: 'The Introduction',
+          description: 'You\'ve infiltrated a suspected criminal enterprise as a financial consultant. Your handler has arranged a meeting with the organization\'s leadership.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 13
+          },
+          choices: {
+            cooperate: {
+              text: 'Follow Protocol',
+              description: 'Stick to your cover story and established procedures',
+              outcomes: {
+                bothCooperate: {
+                  playerPoints: 3,
+                  dmPoints: 0
+                },
+                betrayed: {
+                  playerPoints: 0,
+                  dmPoints: 2
+                }
+              }
+            },
+            betray: {
+              text: 'Go Off Script',
+              description: 'Improvise to gain their trust faster',
+              outcomes: {
+                successful: {
+                  playerPoints: 5,
+                  dmPoints: 2
+                },
+                bothBetray: {
+                  playerPoints: 1,
+                  dmPoints: 3
+                }
+              }
+            }
+          }
+        },
+        {
+          id: 2,
+          title: 'The Paper Trail',
+          description: 'You\'ve discovered irregularities in the organization\'s financial records. Your handler wants immediate documentation, but the organization\'s CFO is watching you closely.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 14
+          },
+          choices: {
+            cooperate: {
+              text: 'Build Trust First',
+              description: 'Take time to establish credibility before accessing sensitive documents',
+              outcomes: {
+                bothCooperate: {
+                  playerPoints: 3,
+                  dmPoints: 0
+                },
+                betrayed: {
+                  playerPoints: 0,
+                  dmPoints: 2
+                }
+              }
+            },
+            betray: {
+              text: 'Seize the Opportunity',
+              description: 'Risk copying the documents immediately',
+              outcomes: {
+                successful: {
+                  playerPoints: 5,
+                  dmPoints: 2
+                },
+                bothBetray: {
+                  playerPoints: 1,
+                  dmPoints: 3
+                }
+              }
+            }
+          }
+        },
+        {
+          id: 3,
+          title: 'The Double Cross',
+          description: 'Your handler misses a scheduled check-in. The organization offers you a legitimate position with substantial benefits.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 15
+          },
+          choices: {
+            cooperate: {
+              text: 'Maintain Cover',
+              description: 'Continue the investigation despite radio silence',
+              outcomes: {
+                bothCooperate: {
+                  playerPoints: 3,
+                  dmPoints: 0
+                },
+                betrayed: {
+                  playerPoints: 0,
+                  dmPoints: 2
+                }
+              }
+            },
+            betray: {
+              text: 'Consider the Offer',
+              description: 'Explore what the organization is really proposing',
+              outcomes: {
+                successful: {
+                  playerPoints: 5,
+                  dmPoints: 2
+                },
+                bothBetray: {
+                  playerPoints: 1,
+                  dmPoints: 3
+                }
+              }
+            }
+          }
+        },
+        {
+          id: 4,
+          title: 'The Exposure',
+          description: 'Another undercover agent has been discovered. The organization is conducting internal investigations.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 16
+          },
+          choices: {
+            cooperate: {
+              text: 'Stand Firm',
+              description: 'Maintain your cover story under intense scrutiny',
+              outcomes: {
+                bothCooperate: {
+                  playerPoints: 3,
+                  dmPoints: 0
+                },
+                betrayed: {
+                  playerPoints: 0,
+                  dmPoints: 2
+                }
+              }
+            },
+            betray: {
+              text: 'Shift Suspicion',
+              description: 'Implicate others to protect yourself',
+              outcomes: {
+                successful: {
+                  playerPoints: 5,
+                  dmPoints: 2
+                },
+                bothBetray: {
+                  playerPoints: 1,
+                  dmPoints: 3
+                }
+              }
+            }
+          }
+        },
+        {
+          id: 5,
+          title: 'The Takedown',
+          description: 'The RICO case is ready, but the organization\'s leader offers evidence of corruption within law enforcement.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 17
+          },
+          choices: {
+            cooperate: {
+              text: 'Execute the Raid',
+              description: 'Proceed with the planned operation',
+              outcomes: {
+                bothCooperate: {
+                  playerPoints: 3,
+                  dmPoints: 0
+                },
+                betrayed: {
+                  playerPoints: 0,
+                  dmPoints: 2
+                }
+              }
+            },
+            betray: {
+              text: 'Investigate Corruption',
+              description: 'Delay the raid to expose potential internal corruption',
+              outcomes: {
+                successful: {
+                  playerPoints: 5,
+                  dmPoints: 2
+                },
+                bothBetray: {
+                  playerPoints: 1,
+                  dmPoints: 3
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ];
 
@@ -608,169 +812,187 @@ export const useGame = () => {
   }
 
 
-  // Enhanced choice making with narrative outcomes
+  const makeChoice = async (gameId, roundId, choice, diceInfo) => {
+    loading.value = true
+    error.value = null
+    roundOutcome.value = null
+  
+    try {
+      validateDatabaseConnection()
+  
+      if (!auth.currentUser) {
+        throw new Error('User must be authenticated')
+      }
+  
+      const gameRef = dbRef(database, `games/${gameId}`)
+      const snapshot = await get(gameRef)
+  
+      if (!snapshot.exists()) {
+        throw new Error('Game not found')
+      }
+  
+      const gameData = snapshot.val()
+  
+      if (gameData.currentRound !== roundId) {
+        throw new Error('Invalid round')
+      }
+  
+      // Get current round data
+      const currentRound = gameData.scenario.rounds.find(r => r.id === roundId)
+      if (!currentRound) {
+        throw new Error('Round not found')
+      }
+  
+      // Get previous choices and game history
+      const previousChoices = gameData.players[auth.currentUser.uid]?.choices || {}
+      const aiChoices = gameData.players.ai?.choices || {}
+      
+      // Generate AI's choice
+      const aiChoice = generateAiChoice(gameData, roundId)
+  
+      // Calculate base outcome
+      const baseOutcome = determineOutcome(
+        choice, 
+        aiChoice, 
+        currentRound, 
+        diceInfo || { diceRoll: 10, finalResult: 10 }
+      )
+  
+      // Calculate final points
+      const pointMultiplier = (diceInfo?.finalResult >= (currentRound.dcCheck || 10)) ? 1.5 : 0.75
+      const finalPlayerPoints = Math.floor((baseOutcome.playerPoints || 0) * pointMultiplier)
+      const finalAiPoints = aiChoice === 'betray' ? 2 : 0
+      const finalDmPoints = baseOutcome.dmPoints || 0
+  
+      // Calculate consequences
+      const newConsequences = consequenceManager.generateConsequence(choice, diceInfo, baseOutcome)
+  
+      // Prepare the base updates object
+      const updates = {
+        [`players/${auth.currentUser.uid}/choices/${roundId}`]: {
+          choice: choice || 'cooperate',
+          diceRoll: diceInfo?.diceRoll || 10,
+          finalResult: diceInfo?.finalResult || 10,
+          modifier: diceInfo?.modifier || 0,
+          timestamp: Date.now(),
+          outcome: {
+            pointMultiplier: pointMultiplier,
+            points: finalPlayerPoints
+          }
+        },
+        [`players/${auth.currentUser.uid}/score`]: 
+          (gameData.players[auth.currentUser.uid]?.score || 0) + finalPlayerPoints,
+  
+        [`players/ai/choices/${roundId}`]: {
+          choice: aiChoice,
+          timestamp: Date.now(),
+          outcome: {
+            points: finalAiPoints
+          }
+        },
+        [`players/ai/score`]: 
+          (gameData.players.ai?.score || 0) + finalAiPoints,
+  
+        dmPoints: (gameData.dmPoints || 0) + finalDmPoints,
+        currentRoundStatus: 'completed'
+      }
+  
+      // Add consequences if any
+      if (newConsequences && newConsequences.length > 0) {
+        updates.consequences = {
+          ...gameData.consequences,
+          [roundId]: newConsequences.map(c => ({
+            type: c.type || 'neutral',
+            description: c.description || 'The round ends.',
+            duration: c.duration || 1,
+            modifier: c.modifier || 0
+          }))
+        }
+      }
+  
+      // Handle next round narration if not final round
+      if (roundId < 5) {
+        const narrativeGenerator = useNarrativeGenerator()
+        let nextRoundNarration = [
+          "The game continues...",
+          "Your choices echo through the shadows..."
+        ]
+  
+        try {
+          const generatedNarration = await narrativeGenerator.generateDMNarration({
+            roundNumber: roundId + 1,
+            scenarioId: gameData.scenarioId,
+            previousChoices,
+            lastRoundChoice: {
+              playerChoice: choice,
+              aiChoice: aiChoice
+            },
+            playerHistory: {
+              ...previousChoices,
+              [roundId]: { choice }
+            },
+            aiHistory: {
+              ...aiChoices,
+              [roundId]: { choice: aiChoice }
+            }
+          })
+  
+          if (Array.isArray(generatedNarration) && generatedNarration.length > 0) {
+            nextRoundNarration = generatedNarration
+          }
+        } catch (err) {
+          console.error('Narration generation error:', err)
+          // Keep default narration
+        }
+  
+        // Store narration in a dedicated path
+        updates[`narration/${roundId + 1}`] = nextRoundNarration
+        updates.currentRound = roundId + 1
+      } else {
+        // Final round updates
+        updates.currentRound = 6
+        updates.status = 'completed'
+        updates.completedAt = Date.now()
+        updates.finalOutcome = {
+          playerScore: (gameData.players[auth.currentUser.uid]?.score || 0) + finalPlayerPoints,
+          aiScore: (gameData.players.ai?.score || 0) + finalAiPoints,
+          dmScore: (gameData.dmPoints || 0) + finalDmPoints,
+          finalConsequences: newConsequences || []
+        }
+      }
+  
+      // Batch update all changes
+      await update(gameRef, updates)
+  
+      // Store outcome for UI
+      roundOutcome.value = {
+        narrative: baseOutcome.narrative || "The round concludes...",
+        playerPoints: finalPlayerPoints,
+        aiPoints: finalAiPoints,
+        dmPoints: finalDmPoints,
+        pointMultiplier,
+        playerChoice: choice,
+        aiChoice,
+        consequences: newConsequences || []
+      }
+  
+      return {
+        outcome: roundOutcome.value,
+        gameState: currentGame.value
+      }
+  
+    } catch (err) {
+      error.value = err.message
+      console.error('Error making choice:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
 // Helper function to ensure safe values for Firebase
 const ensureSafeValue = (value, fallback = '') => {
   return value === undefined || value === null ? fallback : value
-}
-
-const makeChoice = async (gameId, roundId, choice, diceInfo) => {
-  loading.value = true
-  error.value = null
-  roundOutcome.value = null
-
-  try {
-    validateDatabaseConnection()
-
-    if (!auth.currentUser) {
-      throw new Error('User must be authenticated')
-    }
-
-    const gameRef = dbRef(database, `games/${gameId}`)
-    const snapshot = await get(gameRef)
-
-    if (!snapshot.exists()) {
-      throw new Error('Game not found')
-    }
-
-    const gameData = snapshot.val()
-
-    if (gameData.currentRound !== roundId) {
-      throw new Error('Invalid round')
-    }
-
-    // Get current round data
-    const currentRound = gameData.scenario.rounds.find(r => r.id === roundId)
-    if (!currentRound) {
-      throw new Error('Round not found')
-    }
-
-    // Generate AI's choice
-    const aiChoice = generateAiChoice(gameData, roundId)
-
-    // Calculate base outcome first (this is our fallback narrative source)
-    const baseOutcome = determineOutcome(
-      choice, 
-      aiChoice, 
-      currentRound, 
-      diceInfo || { diceRoll: 10, finalResult: 10 }
-    )
-
-    // Calculate final points
-    const pointMultiplier = (diceInfo?.finalResult >= (currentRound.dcCheck || 10)) ? 1.5 : 0.75
-    const finalPlayerPoints = Math.floor((baseOutcome.playerPoints || 0) * pointMultiplier)
-    const finalAiPoints = aiChoice === 'betray' ? 2 : 0
-    const finalDmPoints = baseOutcome.dmPoints || 0
-
-    // Ensure we have a narrative either from baseOutcome or a fallback
-    let outcomeNarrative = ensureSafeValue(
-      baseOutcome.narrative,
-      "Your choice leads to an uncertain outcome..."
-    )
-
-    try {
-      // Try to get AI-generated narrative
-      const narrativeContext = {
-        roundNumber: roundId,
-        roundTheme: currentRound.title,
-        playerChoice: choice,
-        aiChoice,
-        diceRoll: diceInfo?.diceRoll || 10,
-        finalResult: diceInfo?.finalResult || 10,
-        rollSuccess: (diceInfo?.finalResult || 10) >= (currentRound.dcCheck || 10),
-        consequences: [],
-        previousNarrative: gameData.lastNarrative || '',
-        playerHistory: gameData.players[auth.currentUser.uid].choices || {}
-      }
-
-      const generatedNarrative = await generateOutcomeNarrative(narrativeContext)
-      if (generatedNarrative) {
-        outcomeNarrative = generatedNarrative
-      }
-    } catch (err) {
-      console.error('Narrative generation failed, using base outcome:', err)
-      // We already have a fallback narrative, so we can continue
-    }
-
-    // Prepare safe updates object
-    const updates = {
-      [`players/${auth.currentUser.uid}/choices/${roundId}`]: {
-        choice: ensureSafeValue(choice, 'cooperate'),
-        diceRoll: ensureSafeValue(diceInfo?.diceRoll, 10),
-        finalResult: ensureSafeValue(diceInfo?.finalResult, 10),
-        modifier: ensureSafeValue(diceInfo?.modifier, 0),
-        outcome: {
-          narrative: outcomeNarrative,
-          pointMultiplier: ensureSafeValue(pointMultiplier, 1)
-        }
-      },
-      [`players/${auth.currentUser.uid}/score`]: 
-        ensureSafeValue(gameData.players[auth.currentUser.uid]?.score, 0) + finalPlayerPoints,
-
-      [`players/ai/choices/${roundId}`]: {
-        choice: ensureSafeValue(aiChoice, 'cooperate'),
-        outcome: {
-          points: ensureSafeValue(finalAiPoints, 0)
-        }
-      },
-      [`players/ai/score`]: 
-        ensureSafeValue(gameData.players.ai?.score, 0) + finalAiPoints,
-
-      dmPoints: ensureSafeValue(gameData.dmPoints, 0) + finalDmPoints,
-      lastNarrative: outcomeNarrative,
-      currentRoundStatus: 'completed'
-    }
-
-    // Update round or complete game
-    if (roundId === 5) {
-      updates.currentRound = 6
-      updates.status = 'completed'
-      updates.completedAt = Date.now()
-      updates.finalOutcome = {
-        playerScore: ensureSafeValue(gameData.players[auth.currentUser.uid]?.score, 0) + finalPlayerPoints,
-        aiScore: ensureSafeValue(gameData.players.ai?.score, 0) + finalAiPoints,
-        dmScore: ensureSafeValue(gameData.dmPoints, 0) + finalDmPoints
-      }
-    } else {
-      updates.currentRound = roundId + 1
-    }
-
-    // Try to get next round narration if not final round
-    if (roundId < 5) {
-      const narrativeGenerator = useNarrativeGenerator();
-      const nextRoundNarration = narrativeGenerator.generateDMNarration({
-        roundNumber: roundId + 1
-      });
-  
-      updates[`scenario/rounds/${roundId}/dmNarration`] = nextRoundNarration;
-    }
-
-    // Batch update all changes
-    await update(gameRef, updates)
-
-    // Store outcome for UI
-    roundOutcome.value = {
-      narrative: outcomeNarrative,
-      playerPoints: finalPlayerPoints,
-      aiPoints: finalAiPoints,
-      dmPoints: finalDmPoints,
-      pointMultiplier,
-      playerChoice: choice,
-      aiChoice
-    }
-
-    return {
-      outcome: roundOutcome.value,
-      gameState: currentGame.value
-    }
-
-  } catch (err) {
-    error.value = err.message
-    console.error('Error making choice:', err)
-    throw err
-  } finally {
-    loading.value = false
-  }
 }
 
   // Computed properties for game state

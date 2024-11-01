@@ -59,13 +59,13 @@
           </div>
           
           <div class="space-y-3">
-            <p v-for="(line, index) in currentRound.dmNarration" 
-               :key="index"
-               class="text-purple-800 italic"
-               :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5}s`}">
-              "{{ line }}"
-            </p>
-          </div>
+  <p v-for="(line, index) in currentNarration" 
+     :key="index"
+     class="text-purple-800 italic"
+     :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5}s`}">
+    "{{ line }}"
+  </p>
+</div>
         </div>
 
         <!-- Round Information -->
@@ -229,7 +229,13 @@ const roundOutcome = ref(null);
 
 // Computed
 const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
-
+const currentNarration = computed(() => {
+  if (!currentGame.value) return []
+  return currentGame.value.narration?.[currentGame.value.currentRound] || [
+    "The story continues...",
+    "What will you choose?"
+  ]
+})
 const playerScore = computed(() => {
   if (!currentGame.value?.players?.[authStore.user?.uid]?.score) return 0;
   return currentGame.value.players[authStore.user.uid].score;

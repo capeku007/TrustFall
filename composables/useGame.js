@@ -151,51 +151,42 @@ export const useGame = () => {
       title: 'The Shadow Syndicate',
       description: 'A tale of intrigue in the criminal underworld where trust is currency and betrayal is always profitable... for someone.',
       image: '/scenarios/shadow-syndicate.jpg',
-      dmPoints: 0, // Track Dungeon Master's points
+      dmPoints: 0,
       rounds: [
         {
           id: 1,
           title: 'The Underground Meeting',
-          description: 'In a dimly lit basement of The Rusty Anchor tavern, you and your partner plan a major heist. The Dungeon Master, playing as a mysterious crime lord, offers each of you a separate deal.',
-          dmNarration: [
-            "The air is thick with pipe smoke and distrust. I slide two identical contracts across the table, one to each of you.",
-            "Remember, what you discuss here might not reflect what happens in private...",
-            "The question is: do you trust your partner more than you trust my offer?"
-          ],
+          description: 'In a dimly lit basement of The Rusty Anchor tavern, you and your partner plan a major heist.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 12
+          },
           choices: {
             cooperate: {
               text: 'Honor the Partnership',
               description: 'Stay true to your original plan',
               outcomes: {
                 bothCooperate: {
-                  narrative: "You both nod silently, burning the crime lord's contracts. Your mutual trust strengthens.",
                   playerPoints: 3,
-                  dmPoints: 0,
-                  consequence: "Your reputation for loyalty spreads in the underworld."
+                  dmPoints: 0
                 },
                 betrayed: {
-                  narrative: "Your partner's signature on the crime lord's contract seals your fate.",
                   playerPoints: 0,
-                  dmPoints: 2,
-                  consequence: "You lose access to certain black market contacts."
+                  dmPoints: 2
                 }
               }
             },
             betray: {
-              text: 'Accept the Crime Lord\'s Offer',
-              description: 'Sign the private contract',
+              text: 'Accept the Private Offer',
+              description: 'Sign the separate deal',
               outcomes: {
                 successful: {
-                  narrative: "You smile as your partner's loyalty becomes their downfall.",
                   playerPoints: 5,
-                  dmPoints: 2,
-                  consequence: "Gain a powerful ally, but others will hear of your betrayal."
+                  dmPoints: 2
                 },
                 bothBetray: {
-                  narrative: "You both signed the contracts. The crime lord laughs, having played you against each other.",
                   playerPoints: 1,
-                  dmPoints: 3,
-                  consequence: "Your reputation suffers in the criminal underworld."
+                  dmPoints: 3
                 }
               }
             }
@@ -203,29 +194,24 @@ export const useGame = () => {
         },
         {
           id: 2,
-          title: 'The Heist',
-          description: 'During the operation, an unexpected vault appears. The Dungeon Master reveals it contains evidence that could incriminate either of you.',
-          dmNarration: [
-            "Behind this vault door lies more than gold...",
-            "There's enough evidence to send one of you away for a long time.",
-            "Question is: who gets to decide which evidence makes it out?"
-          ],
+          title: 'The Vault',
+          description: 'An unexpected vault appears during the operation, containing evidence that could incriminate either of you.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 13
+          },
           choices: {
             cooperate: {
               text: 'Destroy All Evidence',
               description: 'Ensure both parties\' safety',
               outcomes: {
                 bothCooperate: {
-                  narrative: "Together, you ensure all traces of both your involvements disappear.",
                   playerPoints: 3,
-                  dmPoints: 0,
-                  consequence: "Your partnership becomes legendary in criminal circles."
+                  dmPoints: 0
                 },
                 betrayed: {
-                  narrative: "While you burn your partner's evidence, they pocket yours.",
                   playerPoints: 0,
-                  dmPoints: 2,
-                  consequence: "You're now vulnerable to blackmail."
+                  dmPoints: 2
                 }
               }
             },
@@ -234,16 +220,12 @@ export const useGame = () => {
               description: 'Keep evidence against your partner',
               outcomes: {
                 successful: {
-                  narrative: "You pocket the evidence while they trustingly destroy theirs.",
                   playerPoints: 5,
-                  dmPoints: 2,
-                  consequence: "Gain powerful leverage, but word of your treachery spreads."
+                  dmPoints: 2
                 },
                 bothBetray: {
-                  narrative: "You both scramble for evidence, ultimately ensuring mutual destruction.",
                   playerPoints: 1,
-                  dmPoints: 3,
-                  consequence: "Both of you become vulnerable to future manipulation."
+                  dmPoints: 3
                 }
               }
             }
@@ -252,28 +234,23 @@ export const useGame = () => {
         {
           id: 3,
           title: 'The Escape',
-          description: 'The authorities are closing in. The Dungeon Master offers each of you a separate escape route, but there\'s a catch.',
-          dmNarration: [
-            "I can offer each of you a guaranteed escape...",
-            "But the price might be more than you're willing to pay.",
-            "Sometimes survival means making difficult choices."
-          ],
+          description: 'The authorities are closing in, and separate escape routes become available.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 14
+          },
           choices: {
             cooperate: {
               text: 'Stick Together',
               description: 'Escape using the original plan',
               outcomes: {
                 bothCooperate: {
-                  narrative: "Working together, you execute a flawless escape.",
                   playerPoints: 3,
-                  dmPoints: 0,
-                  consequence: "Your teamwork becomes stuff of legend."
+                  dmPoints: 0
                 },
                 betrayed: {
-                  narrative: "Your partner takes the escape route, leaving you to face the authorities.",
                   playerPoints: 0,
-                  dmPoints: 2,
-                  consequence: "Your loyalty becomes a cautionary tale."
+                  dmPoints: 2
                 }
               }
             },
@@ -282,16 +259,12 @@ export const useGame = () => {
               description: 'Accept the individual escape offer',
               outcomes: {
                 successful: {
-                  narrative: "You slip away while your partner faces the consequences.",
                   playerPoints: 5,
-                  dmPoints: 2,
-                  consequence: "Gain notoriety, but lose underworld respect."
+                  dmPoints: 2
                 },
                 bothBetray: {
-                  narrative: "In the chaos of separate escapes, both plans fall apart.",
                   playerPoints: 1,
-                  dmPoints: 3,
-                  consequence: "Neither escape route works as promised."
+                  dmPoints: 3
                 }
               }
             }
@@ -299,29 +272,24 @@ export const useGame = () => {
         },
         {
           id: 4,
-          title: 'The Aftermath',
-          description: 'Tensions rise as the Dungeon Master reveals there\'s a mole in your operation. One of you must be cleared.',
-          dmNarration: [
-            "Someone talked. The question is who...",
-            "I have ways of finding out, but loyalty has its price.",
-            "Will you trust your partner, or protect yourself?"
-          ],
+          title: 'The Investigation',
+          description: 'A mole is discovered in your operation, and suspicion falls on both of you.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 15
+          },
           choices: {
             cooperate: {
               text: 'Maintain Solidarity',
               description: 'Refuse to play the blame game',
               outcomes: {
                 bothCooperate: {
-                  narrative: "Your united front crumbles the investigation.",
                   playerPoints: 3,
-                  dmPoints: 0,
-                  consequence: "Your loyalty earns respect from all sides."
+                  dmPoints: 0
                 },
                 betrayed: {
-                  narrative: "Your partner's testimony seals your fate as the fall guy.",
                   playerPoints: 0,
-                  dmPoints: 2,
-                  consequence: "Your reputation is permanently damaged."
+                  dmPoints: 2
                 }
               }
             },
@@ -330,16 +298,12 @@ export const useGame = () => {
               description: 'Provide information about your partner',
               outcomes: {
                 successful: {
-                  narrative: "Your partner's loyalty becomes their undoing.",
                   playerPoints: 5,
-                  dmPoints: 2,
-                  consequence: "Clear your name, but become known as an informant."
+                  dmPoints: 2
                 },
                 bothBetray: {
-                  narrative: "Your mutual accusations destroy any credibility either of you had.",
                   playerPoints: 1,
-                  dmPoints: 3,
-                  consequence: "Both of you lose standing in the criminal world."
+                  dmPoints: 3
                 }
               }
             }
@@ -347,29 +311,24 @@ export const useGame = () => {
         },
         {
           id: 5,
-          title: 'The Final Deal',
-          description: 'The Dungeon Master offers a chance at a legendary score, but only one of you can claim it.',
-          dmNarration: [
-            "This is the big one. The score of a lifetime...",
-            "But there's only room for one at the top.",
-            "The question is: how much is loyalty worth?"
-          ],
+          title: 'The Final Score',
+          description: 'A legendary opportunity presents itself, but only one can claim it.',
+          skillCheck: {
+            name: 'Deception',
+            dcCheck: 16
+          },
           choices: {
             cooperate: {
               text: 'Share the Opportunity',
               description: 'Propose a joint venture',
               outcomes: {
                 bothCooperate: {
-                  narrative: "Together, you turn the opportunity into an even bigger score.",
                   playerPoints: 3,
-                  dmPoints: 0,
-                  consequence: "Your partnership becomes the stuff of legend."
+                  dmPoints: 0
                 },
                 betrayed: {
-                  narrative: "Your partner claims the score, leaving you with nothing.",
                   playerPoints: 0,
-                  dmPoints: 2,
-                  consequence: "Your generosity becomes a warning to others."
+                  dmPoints: 2
                 }
               }
             },
@@ -378,16 +337,12 @@ export const useGame = () => {
               description: 'Take the opportunity for yourself',
               outcomes: {
                 successful: {
-                  narrative: "You secure the score while your partner is left empty-handed.",
                   playerPoints: 5,
-                  dmPoints: 2,
-                  consequence: "Gain immense wealth, but become universally distrusted."
+                  dmPoints: 2
                 },
                 bothBetray: {
-                  narrative: "Your mutual greed causes the opportunity to slip through your fingers.",
                   playerPoints: 1,
-                  dmPoints: 3,
-                  consequence: "The legendary score is lost to both of you."
+                  dmPoints: 3
                 }
               }
             }
@@ -441,21 +396,29 @@ export const useGame = () => {
 
   // Create new game with enhanced structure
   const createNewGame = async (scenarioId) => {
-    loading.value = true
-    error.value = null
-
+    loading.value = true;
+    error.value = null;
+  
     try {
-      validateDatabaseConnection()
-
+      validateDatabaseConnection();
+  
       if (!auth.currentUser) {
-        throw new Error('User must be authenticated')
+        throw new Error('User must be authenticated');
       }
       
-      const scenario = scenarios.find(s => s.id === scenarioId)
+      const scenario = scenarios.find(s => s.id === scenarioId);
       if (!scenario) {
-        throw new Error('Invalid scenario')
+        throw new Error('Invalid scenario');
       }
-
+  
+      // Generate initial narration for first round
+      const narrativeGenerator = useNarrativeGenerator();
+      const initialNarration = narrativeGenerator.generateDMNarration({ roundNumber: 1 });
+  
+      // Create a deep copy of the scenario and inject the initial narration
+      const gameScenario = JSON.parse(JSON.stringify(scenario));
+      gameScenario.rounds[0].dmNarration = initialNarration;
+  
       const gameData = {
         scenarioId,
         createdAt: Date.now(),
@@ -476,28 +439,29 @@ export const useGame = () => {
             choices: {}
           }
         },
-        scenario
-      }
-
-      const gamesRef = dbRef(database, 'games')
-      const newGameRef = push(gamesRef)
+        scenario: gameScenario
+      };
+  
+      const gamesRef = dbRef(database, 'games');
+      const newGameRef = push(gamesRef);
       
-      await set(newGameRef, gameData)
-      setupGameListener(newGameRef.key)
-
+      await set(newGameRef, gameData);
+      setupGameListener(newGameRef.key);
+  
       return {
         id: newGameRef.key,
         ...gameData
-      }
-
+      };
+  
     } catch (err) {
-      error.value = err.message
-      console.error('Error creating game:', err)
-      throw err
+      error.value = err.message;
+      console.error('Error creating game:', err);
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
+  
 
   // Fetch game with enhanced error handling
   const fetchGame = async (gameId) => {
@@ -773,25 +737,12 @@ const makeChoice = async (gameId, roundId, choice, diceInfo) => {
 
     // Try to get next round narration if not final round
     if (roundId < 5) {
-      const nextRound = gameData.scenario.rounds.find(r => r.id === roundId + 1)
-      if (nextRound) {
-        try {
-          const narrationContext = {
-            roundNumber: roundId + 1,
-            roundTheme: nextRound.title,
-            previousChoice: choice,
-            diceResult: diceInfo?.diceRoll || 10
-          }
-
-          const nextNarration = await generateDMNarration(narrationContext)
-          if (nextNarration && Array.isArray(nextNarration) && nextNarration.length > 0) {
-            updates[`scenario/rounds/${roundId + 1}/dmNarration`] = nextNarration
-          }
-        } catch (err) {
-          console.error('Failed to generate next round narration:', err)
-          // Continue without next round narration
-        }
-      }
+      const narrativeGenerator = useNarrativeGenerator();
+      const nextRoundNarration = narrativeGenerator.generateDMNarration({
+        roundNumber: roundId + 1
+      });
+  
+      updates[`scenario/rounds/${roundId}/dmNarration`] = nextRoundNarration;
     }
 
     // Batch update all changes

@@ -5,86 +5,101 @@
     </div>
 
     <div class="max-w-3xl mx-auto">
-      <!-- Summary Card -->
+      <!-- Main Summary Card -->
       <div class="bg-white rounded-lg shadow-sm p-6">
-        <h1 class="text-2xl font-bold text-gray-900 mb-4">Criminal Empire Report</h1>
-        <p class="text-gray-600 mb-6">{{ getGameOutcomeSummary }}</p>
+        <h1 class="text-2xl font-bold text-gray-900 mb-4">Operation Debrief</h1>
+        
+        <!-- Enhanced Narrative Summary -->
+        <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-6 mb-8">
+          <p class="text-gray-800 text-lg leading-relaxed">{{ detailedOutcome }}</p>
+        </div>
+
+        <!-- Play Style Analysis -->
+        <div class="grid grid-cols-2 gap-4 mb-8">
+          <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+            <dt class="text-sm font-medium text-gray-500">Operative Profile</dt>
+            <dd class="mt-1 text-lg font-semibold text-gray-900">{{ playStyle }}</dd>
+            <p class="text-sm text-gray-600 mt-1">{{ getPlayStyleDescription }}</p>
+          </div>
+          <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+            <dt class="text-sm font-medium text-gray-500">Operation Success Rate</dt>
+            <dd class="mt-1 text-lg font-semibold text-gray-900">{{ successRate }}%</dd>
+            <p class="text-sm text-gray-600 mt-1">{{ getSuccessRateDescription }}</p>
+          </div>
+        </div>
         
         <!-- Reputation Stats -->
         <div class="grid grid-cols-3 gap-6 mb-8">
-          <div class="text-center p-4 bg-purple-50 rounded-lg">
-            <h2 class="text-lg font-semibold text-gray-900 mb-2">Your Score</h2>
+          <div class="text-center p-4 bg-gradient-to-b from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Your Standing</h2>
             <p class="text-3xl font-bold text-purple-600">{{ playerScore }}</p>
-            <p class="mt-2 text-sm text-gray-500">{{ getReputationStatus }}</p>
+            <p class="mt-2 text-sm font-medium" 
+               :class="getScoreClass(playerScore, aiScore)">
+              {{ getReputationStatus }}
+            </p>
           </div>
           
-          <div class="text-center p-4 bg-indigo-50 rounded-lg">
-            <h2 class="text-lg font-semibold text-gray-900 mb-2">DM's Take</h2>
+          <div class="text-center p-4 bg-gradient-to-b from-indigo-50 to-indigo-100 rounded-lg border border-indigo-200">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">DM's Influence</h2>
             <p class="text-3xl font-bold text-indigo-600">{{ currentGame?.dmPoints || 0 }}</p>
-            <p class="mt-2 text-sm text-gray-500">{{ getDungeonMasterImpact }}</p>
+            <p class="mt-2 text-sm font-medium text-indigo-600">{{ dungeonMasterImpact }}</p>
           </div>
 
-          <div class="text-center p-4 bg-blue-50 rounded-lg">
-            <h2 class="text-lg font-semibold text-gray-900 mb-2">Rival's Score</h2>
+          <div class="text-center p-4 bg-gradient-to-b from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Rival's Power</h2>
             <p class="text-3xl font-bold text-blue-600">{{ aiScore }}</p>
-            <p class="mt-2 text-sm text-gray-500">{{ getRivalStatus }}</p>
+            <p class="mt-2 text-sm font-medium" 
+               :class="getScoreClass(aiScore, playerScore)">
+              {{ getRivalStatus }}
+            </p>
           </div>
         </div>
 
-        <!-- Strategic Analysis -->
-        <div class="mb-8">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Criminal Profile</h2>
-          <div class="bg-gray-50 rounded-lg p-4">
-            <dl class="grid grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Trust Rating</dt>
-                <dd class="mt-1 text-2xl font-semibold text-gray-900">
-                  {{ calculateCooperationRate }}%
-                </dd>
-                <p class="text-sm text-gray-600 mt-1">{{ getTrustAnalysis }}</p>
-              </div>
-              <div>
-                <dt class="text-sm font-medium text-gray-500">Most Profitable Move</dt>
-                <dd class="mt-1 text-2xl font-semibold text-gray-900">
-                  Round {{ bestRound }}
-                </dd>
-                <p class="text-sm text-gray-600 mt-1">{{ getBestRoundAnalysis }}</p>
-              </div>
-            </dl>
-          </div>
-        </div>
-
-        <!-- Round by Round Analysis -->
+        <!-- Round Analysis -->
         <div class="mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Operation Timeline</h2>
           <div class="space-y-4">
-            <div v-for="round in rounds" :key="round.id" class="p-4 bg-gray-50 rounded-lg">
+            <div v-for="round in processedRounds" 
+                 :key="round.id" 
+                 class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
               <div class="flex items-center justify-between mb-2">
-                <h3 class="font-medium text-gray-900">Phase {{ round.id }}: {{ round.title }}</h3>
+                <h3 class="font-medium text-gray-900">
+                  Phase {{ round.id }}: {{ round.title }}
+                </h3>
                 <div class="flex items-center space-x-4">
-                  <!-- Choice Indicators -->
-                  <div class="flex items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center"
-                      :class="getChoiceClass(getPlayerChoice(round.id))">
-                      <span v-if="getPlayerChoice(round.id) === 'cooperate'" class="text-purple-600 text-lg">✓</span>
-                      <span v-else-if="getPlayerChoice(round.id) === 'betray'" class="text-red-600 text-lg">✗</span>
+                  <!-- Choice Display -->
+                  <div class="flex items-center space-x-2">
+                    <div class="px-3 py-1 rounded-full text-sm font-medium"
+                         :class="getChoiceDisplayClass(round.playerChoice)">
+                      {{ getChoiceDisplayText(round.playerChoice) }}
                     </div>
-                    <span class="mx-2 text-sm font-medium text-gray-600">vs</span>
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center"
-                      :class="getChoiceClass(getAIChoice(round.id))">
-                      <span v-if="getAIChoice(round.id) === 'cooperate'" class="text-purple-600 text-lg">✓</span>
-                      <span v-else-if="getAIChoice(round.id) === 'betray'" class="text-red-600 text-lg">✗</span>
+                    <span class="text-gray-400">vs</span>
+                    <div class="px-3 py-1 rounded-full text-sm font-medium"
+                         :class="getChoiceDisplayClass(round.aiChoice)">
+                      {{ getChoiceDisplayText(round.aiChoice) }}
                     </div>
                   </div>
-                  <!-- Score Display -->
+                  
+                  <!-- Score & Dice -->
                   <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium text-purple-600">+{{ getRoundScore(round.id).playerScore }}</span>
-                    <span class="text-sm text-gray-400">/</span>
-                    <span class="text-sm font-medium text-blue-600">+{{ getRoundScore(round.id).aiScore }}</span>
+                    <span class="text-sm font-medium text-purple-600">
+                      +{{ round.playerPoints }}
+                    </span>
+                    <span v-if="round.diceRoll" 
+                          class="text-xs text-gray-400">
+                      (🎲{{ round.diceRoll }})
+                    </span>
                   </div>
                 </div>
               </div>
-              <p class="text-sm text-gray-600 mt-2">{{ getRoundAnalysis(round.id) }}</p>
+              <p class="text-sm text-gray-600">{{ getRoundAnalysis(round) }}</p>
+              
+              <!-- Critical Moments Badge -->
+              <div v-if="round.isCritical" 
+                   :class="getCriticalBadgeClass(round)"
+                   class="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
+                {{ getCriticalBadgeText(round) }}
+              </div>
             </div>
           </div>
         </div>
@@ -110,6 +125,7 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGame } from '~/composables/useGame'
 import { useAuthStore } from '~/stores/authStore'
+import { useModal } from '~/composables/useModal'
 
 const props = defineProps({
   gameId: {
@@ -121,180 +137,18 @@ const props = defineProps({
 const router = useRouter()
 const { currentGame, fetchGame } = useGame()
 const authStore = useAuthStore()
+const { showModal } = useModal()
+
+definePageMeta({
+  middleware: ['auth']
+})
 
 // Fetch game data on mount
 onMounted(async () => {
   await fetchGame(props.gameId)
 })
-const { showModal, hideModal } = useModal();
-definePageMeta({
-  middleware: ['auth']
-})
 
-// Update the analysis methods in your game summary component:
-
-const getRoundScore = (roundId) => {
-  const playerChoice = getPlayerChoice(roundId)?.choice // Updated to handle choice object structure
-  const aiChoice = getAIChoice(roundId)?.choice // Updated to handle choice object structure
-  
-  if (!playerChoice || !aiChoice) {
-    return { playerScore: 0, aiScore: 0 }
-  }
-  
-  // Get the actual scores from the stored round data
-  const roundData = currentGame.value?.players[authStore.user.uid]?.choices?.[roundId]
-  const aiRoundData = currentGame.value?.players?.ai?.choices?.[roundId]
-  
-  return {
-    playerScore: roundData?.outcome?.points || 0,
-    aiScore: aiRoundData?.outcome?.points || 0,
-    diceRoll: roundData?.diceRoll,
-    finalResult: roundData?.finalResult
-  }
-}
-
-const getRoundAnalysis = (roundId) => {
-  const roundData = currentGame.value?.players[authStore.user.uid]?.choices?.[roundId]
-  const playerChoice = getPlayerChoice(roundId)?.choice
-  const aiChoice = getAIChoice(roundId)?.choice
-  
-  // If we don't have round data, return empty analysis
-  if (!roundData) return "Round data not available"
-
-  // Get dice roll information if available
-  const diceInfo = {
-    roll: roundData.diceRoll,
-    finalResult: roundData.finalResult,
-    success: roundData.finalResult >= (currentGame.value?.scenario?.rounds[roundId - 1]?.dcCheck || 10)
-  }
-
-  // Build comprehensive round analysis
-  let analysis = ''
-
-  // Analyze the choice combination
-  if (playerChoice === 'cooperate' && aiChoice === 'cooperate') {
-    analysis = "A moment of mutual trust and cooperation."
-  } else if (playerChoice === 'cooperate' && aiChoice === 'betray') {
-    analysis = "Your trust was met with betrayal."
-  } else if (playerChoice === 'betray' && aiChoice === 'cooperate') {
-    analysis = "You successfully exploited their trust."
-  } else if (playerChoice === 'betray' && aiChoice === 'betray') {
-    analysis = "Both parties chose betrayal."
-  }
-
-  // Add dice roll context if available
-  if (diceInfo.roll) {
-    if (diceInfo.roll === 20) {
-      analysis += " A critical success enhanced the outcome!"
-    } else if (diceInfo.roll === 1) {
-      analysis += " A critical failure complicated matters."
-    } else if (diceInfo.success) {
-      analysis += " Your skill improved the situation."
-    } else {
-      analysis += " The circumstances worked against you."
-    }
-  }
-
-  return analysis
-}
-
-// Update the best round analysis to be more detailed
-const getBestRoundAnalysis = computed(() => {
-  const bestRoundData = currentGame.value?.players[authStore.user.uid]?.choices?.[bestRound.value]
-  if (!bestRoundData) return ""
-  
-  const round = rounds.value.find(r => r.id === bestRound.value)
-  if (!round) return ""
-
-  let analysis = `Peak performance during ${round.title}`
-  if (bestRoundData.diceRoll === 20) {
-    analysis += " - A perfect execution!"
-  } else if (bestRoundData.finalResult >= (round.dcCheck || 10)) {
-    analysis += " - Skillfully handled."
-  }
-  
-  return analysis
-})
-
-// Update the trust analysis to be more accurate
-const getTrustAnalysis = computed(() => {
-  const rate = calculateCooperationRate.value
-  if (rate >= 80) return "A paragon of loyalty in a treacherous world"
-  if (rate >= 60) return "Known for honoring agreements more often than not"
-  if (rate >= 40) return "Balances trust and cunning equally"
-  if (rate >= 20) return "Prefers deception over cooperation"
-  return "Consistently chooses the path of betrayal"
-})
-
-// Update the calculation of cooperation rate to handle the new data structure
-const calculateCooperationRate = computed(() => {
-  if (!currentGame.value?.players || !authStore.user?.uid) return 0
-  const choices = currentGame.value.players[authStore.user.uid]?.choices || {}
-  const playerChoices = Object.values(choices).map(round => round.choice)
-  if (playerChoices.length === 0) return 0
-  
-  const cooperateCount = playerChoices.filter(choice => choice === 'cooperate').length
-  return Math.round((cooperateCount / playerChoices.length) * 100)
-})
-
-// Add a method to get the actual choice from the round data
-const getPlayerChoice = (roundId) => {
-  if (!currentGame.value?.players || !authStore.user?.uid) return null
-  return currentGame.value.players[authStore.user.uid]?.choices?.[roundId]
-}
-
-const getAIChoice = (roundId) => {
-  if (!currentGame.value?.players?.ai?.choices) return null
-  return currentGame.value.players.ai.choices[roundId]
-}
-
-
-////////////////////////
-const getGameOutcomeSummary = computed(() => {
-  const playerWon = playerScore.value > aiScore.value
-  const dmDominant = (currentGame.value?.dmPoints || 0) > Math.max(playerScore.value, aiScore.value)
-  
-  if (dmDominant) {
-    return "The Dungeon Master's machinations proved masterful, playing all sides against each other."
-  } else if (playerWon) {
-    return `You've emerged victorious from this web of intrigue, proving yourself a master of the game.`
-  } else {
-    return "Your rival outmaneuvered you this time, but the criminal underworld is full of opportunities."
-  }
-})
-
-const getReputationStatus = computed(() => {
-  const score = playerScore.value
-  if (score >= 20) return "Criminal Mastermind"
-  if (score >= 15) return "Rising Power"
-  if (score >= 10) return "Street Smart"
-  return "Small Time Player"
-})
-
-const getDungeonMasterImpact = computed(() => {
-  const dmPoints = currentGame.value?.dmPoints || 0
-  if (dmPoints >= 15) return "Puppet Master"
-  if (dmPoints >= 10) return "Major Player"
-  return "Background Force"
-})
-
-const getRivalStatus = computed(() => {
-  const score = aiScore.value
-  if (score >= 20) return "Kingpin"
-  if (score >= 15) return "Major Threat"
-  if (score >= 10) return "Competent Rival"
-  return "Minor Opposition"
-})
-
-
-const getChoiceClass = (choice) => {
-  return {
-    'bg-purple-100': choice === 'cooperate',
-    'bg-red-100': choice === 'betray',
-    'bg-gray-100': !choice
-  }
-}
-// Computed properties
+// Base computed properties
 const playerScore = computed(() => {
   if (!currentGame.value?.players || !authStore.user?.uid) return 0
   return currentGame.value.players[authStore.user.uid]?.score || 0
@@ -305,26 +159,306 @@ const aiScore = computed(() => {
   return currentGame.value.players.ai?.score || 0
 })
 
-const rounds = computed(() => {
-  return currentGame.value?.scenario?.rounds || []
+// Enhanced computed properties
+const processedRounds = computed(() => {
+  if (!currentGame.value?.scenario?.rounds) return []
+  
+  return currentGame.value.scenario.rounds.map(round => {
+    const playerChoice = getPlayerChoice(round.id)
+    const aiChoice = getAIChoice(round.id)
+    const scores = getRoundScore(round.id)
+    
+    return {
+      ...round,
+      playerChoice: playerChoice?.choice,
+      aiChoice: aiChoice?.choice,
+      diceRoll: playerChoice?.diceRoll,
+      finalResult: playerChoice?.finalResult,
+      playerPoints: scores.playerScore,
+      aiPoints: scores.aiScore,
+      isCritical: playerChoice?.diceRoll === 20 || playerChoice?.diceRoll === 1
+    }
+  })
 })
 
-const bestRound = computed(() => {
-  let bestScore = 0
-  let bestRoundNum = 1
+const playStyle = computed(() => {
+  const choices = processedRounds.value
+    .map(r => r.playerChoice)
+    .filter(Boolean)
   
-  for (let i = 1; i <= 5; i++) {
-    const roundScore = getRoundScore(i).playerScore
-    if (roundScore > bestScore) {
-      bestScore = roundScore
-      bestRoundNum = i
-    }
+  const cooperateCount = choices.filter(c => c === 'cooperate').length
+  const betrayCount = choices.filter(c => c === 'betray').length
+  const negotiateCount = choices.filter(c => c === 'negotiate').length
+  
+  if (cooperateCount >= Math.max(betrayCount, negotiateCount)) {
+    return 'Honorable Operative'
+  } else if (betrayCount >= Math.max(cooperateCount, negotiateCount)) {
+    return 'Ruthless Mastermind'
+  } else {
+    return 'Cunning Diplomat'
+  }
+})
+
+const successRate = computed(() => {
+  const rounds = processedRounds.value
+  if (rounds.length === 0) return 0
+  
+  const successfulRounds = rounds.filter(r => 
+    r.finalResult >= (r.skillCheck?.dcCheck || 10)
+  ).length
+  
+  return Math.round((successfulRounds / rounds.length) * 100)
+})
+
+const detailedOutcome = computed(() => {
+  const playerWon = playerScore.value > aiScore.value
+  const dmDominant = (currentGame.value?.dmPoints || 0) > Math.max(playerScore.value, aiScore.value)
+  const margin = Math.abs(playerScore.value - aiScore.value)
+  
+  let narrative = `As a ${playStyle.value}, you demonstrated ${
+    successRate.value >= 70 ? 'exceptional' : 
+    successRate.value >= 50 ? 'solid' : 'limited'
+  } operational competence`
+  
+  // Add critical moments
+  const criticalSuccesses = processedRounds.value.filter(r => r.diceRoll === 20).length
+  const criticalFailures = processedRounds.value.filter(r => r.diceRoll === 1).length
+  
+  if (criticalSuccesses > 0 || criticalFailures > 0) {
+    narrative += `, experiencing ${criticalSuccesses} brilliant triumph${
+      criticalSuccesses !== 1 ? 's' : ''
+    } and ${criticalFailures} critical setback${
+      criticalFailures !== 1 ? 's' : ''
+    }`
   }
   
-  return bestRoundNum
+  if (dmDominant) {
+    narrative += `. However, the Dungeon Master's intricate machinations ultimately shaped the outcome.`
+  } else if (playerWon) {
+    narrative += margin > 10 
+      ? `. Your masterful strategy secured a decisive victory.`
+      : `. Through cunning and skill, you emerged victorious in a close contest.`
+  } else {
+    narrative += margin > 10
+      ? `. Despite your efforts, your rival's superior strategy prevailed.`
+      : `. In a closely fought operation, your rival narrowly prevailed.`
+  }
+  
+  return narrative
 })
 
+const getPlayStyleDescription = computed(() => {
+  switch (playStyle.value) {
+    case 'Honorable Operative':
+      return 'Prefers building trust and maintaining alliances'
+    case 'Ruthless Mastermind':
+      return 'Exploits opportunities for maximum personal gain'
+    case 'Cunning Diplomat':
+      return 'Balances cooperation and calculated risk'
+    default:
+      return 'Adapts strategy based on circumstances'
+  }
+})
+
+const getSuccessRateDescription = computed(() => {
+  if (successRate.value >= 80) return 'Exceptional operational execution'
+  if (successRate.value >= 60) return 'Demonstrated consistent competence'
+  if (successRate.value >= 40) return 'Showed mixed operational results'
+  return 'Faced significant operational challenges'
+})
+
+const dungeonMasterImpact = computed(() => {
+  const dmPoints = currentGame.value?.dmPoints || 0
+  if (dmPoints >= 15) return "Mastermind"
+  if (dmPoints >= 10) return "Puppet Master"
+  if (dmPoints >= 5) return "Game Changer"
+  return "Background Player"
+})
+
+// Helper methods
+const getPlayerChoice = (roundId) => {
+  if (!currentGame.value?.players || !authStore.user?.uid) return null
+  return currentGame.value.players[authStore.user.uid]?.choices?.[roundId]
+}
+
+const getAIChoice = (roundId) => {
+  if (!currentGame.value?.players?.ai?.choices) return null
+  return currentGame.value.players.ai.choices[roundId]
+}
+
+const getRoundScore = (roundId) => {
+  const playerChoice = getPlayerChoice(roundId)
+  const aiChoice = getAIChoice(roundId)
+  
+  if (!playerChoice || !aiChoice) {
+    return { playerScore: 0, aiScore: 0 }
+  }
+  
+  return {
+    playerScore: playerChoice.outcome?.points || 0,
+    aiScore: aiChoice.outcome?.points || 0
+  }
+}
+
+const getChoiceDisplayClass = (choice) => {
+  const baseClasses = 'text-sm font-medium px-3 py-1 rounded-full'
+  switch (choice) {
+    case 'cooperate':
+      return `${baseClasses} bg-green-100 text-green-800`
+    case 'negotiate':
+      return `${baseClasses} bg-purple-100 text-purple-800`
+    case 'betray':
+      return `${baseClasses} bg-red-100 text-red-800`
+    default:
+      return `${baseClasses} bg-gray-100 text-gray-800`
+  }
+}
+
+const getChoiceDisplayText = (choice) => {
+  switch (choice) {
+    case 'cooperate':
+      return 'Cooperate'
+    case 'negotiate':
+      return 'Negotiate'
+    case 'betray':
+      return 'Betray'
+    default:
+      return '---'
+  }
+}
+
+const getScoreClass = (score1, score2) => {
+  return {
+    'text-green-600': score1 > score2,
+    'text-red-600': score1 < score2,
+    'text-gray-600': score1 === score2
+  }}
+
+const getCriticalBadgeClass = (round) => {
+  if (round.diceRoll === 20) {
+    return 'bg-green-100 text-green-800'
+  }
+  if (round.diceRoll === 1) {
+    return 'bg-red-100 text-red-800'
+  }
+  if (round.finalResult >= (round.skillCheck?.dcCheck || 10)) {
+    return 'bg-blue-100 text-blue-800'
+  }
+  return 'bg-gray-100 text-gray-800'
+}
+
+const getCriticalBadgeText = (round) => {
+  if (round.diceRoll === 20) return 'Critical Success!'
+  if (round.diceRoll === 1) return 'Critical Failure!'
+  if (round.finalResult >= (round.skillCheck?.dcCheck || 10)) return 'Success'
+  return 'Failure'
+}
+
+const getRoundAnalysis = (round) => {
+  let analysis = ''
+
+  // Base outcome analysis
+  if (round.playerChoice === 'cooperate' && round.aiChoice === 'cooperate') {
+    analysis = 'Mutual cooperation led to a stable outcome.'
+  } else if (round.playerChoice === 'cooperate' && round.aiChoice === 'betray') {
+    analysis = 'Your trust was exploited by your rival.'
+  } else if (round.playerChoice === 'betray' && round.aiChoice === 'cooperate') {
+    analysis = 'You successfully capitalized on their trust.'
+  } else if (round.playerChoice === 'betray' && round.aiChoice === 'betray') {
+    analysis = 'Mutual betrayal resulted in minimal gains.'
+  } else if (round.playerChoice === 'negotiate') {
+    if (round.aiChoice === 'cooperate') {
+      analysis = 'Your cautious approach was met with cooperation.'
+    } else if (round.aiChoice === 'negotiate') {
+      analysis = 'Both parties found common ground through negotiation.'
+    } else {
+      analysis = 'Your attempt at diplomacy was met with betrayal, but your caution limited the damage.'
+    }
+  }
+
+  // Add dice context
+  if (round.diceRoll === 20) {
+    analysis += ' Your exceptional skill turned the situation to your advantage.'
+  } else if (round.diceRoll === 1) {
+    analysis += ' A critical mistake complicated your plans.'
+  } else if (round.finalResult >= (round.skillCheck?.dcCheck || 10)) {
+    analysis += ' Your competence enhanced the outcome.'
+  } else {
+    analysis += ' Circumstances worked against your plans.'
+  }
+
+  return analysis
+}
+
+const getReputationStatus = computed(() => {
+  const score = playerScore.value
+  if (score >= 20) return "Criminal Mastermind"
+  if (score >= 15) return "Rising Power"
+  if (score >= 10) return "Street Smart"
+  if (score >= 5) return "Promising Talent"
+  return "Rookie Operative"
+})
+
+const getRivalStatus = computed(() => {
+  const score = aiScore.value
+  if (score >= 20) return "Underworld Kingpin"
+  if (score >= 15) return "Major Threat"
+  if (score >= 10) return "Skilled Rival"
+  if (score >= 5) return "Notable Opposition"
+  return "Minor Player"
+})
+
+// Navigation
 const goHome = () => {
   router.push('/gamemenu')
 }
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Enhance badges and status indicators */
+.rounded-full {
+  transition: all 0.2s ease;
+}
+
+.rounded-full:hover {
+  transform: scale(1.05);
+}
+
+/* Gradient animations */
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.bg-gradient-to-r {
+  background-size: 200% 200%;
+  animation: gradientFlow 10s ease infinite;
+}
+
+/* Enhanced hover effects for round cards */
+.rounded-lg {
+  transition: all 0.2s ease-in-out;
+}
+
+.rounded-lg:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+</style>

@@ -131,6 +131,201 @@ const consequenceManager = {
     }
   }
 }
+const ChoiceType = {
+  COOPERATE: 'cooperate',
+  NEGOTIATE: 'negotiate',
+  BETRAY: 'betray'
+}
+
+const OutcomeType = {
+  BOTH_COOPERATE: 'bothCooperate',
+  BOTH_NEGOTIATE: 'bothNegotiate',
+  BOTH_BETRAY: 'bothBetray',
+  COOPERATE_NEGOTIATE: 'cooperateNegotiate',
+  NEGOTIATE_BETRAY: 'negotiateBetray',
+  BETRAYED: 'betrayed',
+  SUCCESSFUL_BETRAY: 'successfulBetray',
+  PARTIAL_BETRAYAL: 'partialBetrayal'
+}
+
+const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
+  // Base point values for different outcome combinations
+  const pointMatrix = {
+    [ChoiceType.COOPERATE]: {
+      [ChoiceType.COOPERATE]: { player: 3, ai: 3, dm: 0, type: OutcomeType.BOTH_COOPERATE },
+      [ChoiceType.NEGOTIATE]: { player: 2, ai: 3, dm: 1, type: OutcomeType.COOPERATE_NEGOTIATE },
+      [ChoiceType.BETRAY]: { player: 0, ai: 5, dm: 2, type: OutcomeType.BETRAYED }
+    },
+    [ChoiceType.NEGOTIATE]: {
+      [ChoiceType.COOPERATE]: { player: 3, ai: 2, dm: 1, type: OutcomeType.COOPERATE_NEGOTIATE },
+      [ChoiceType.NEGOTIATE]: { player: 4, ai: 4, dm: 1, type: OutcomeType.BOTH_NEGOTIATE },
+      [ChoiceType.BETRAY]: { player: 1, ai: 4, dm: 2, type: OutcomeType.NEGOTIATE_BETRAY }
+    },
+    [ChoiceType.BETRAY]: {
+      [ChoiceType.COOPERATE]: { player: 5, ai: 0, dm: 2, type: OutcomeType.SUCCESSFUL_BETRAY },
+      [ChoiceType.NEGOTIATE]: { player: 4, ai: 1, dm: 2, type: OutcomeType.PARTIAL_BETRAYAL },
+      [ChoiceType.BETRAY]: { player: 1, ai: 1, dm: 3, type: OutcomeType.BOTH_BETRAY }
+    }
+  }
+
+  // Get base outcome from matrix
+  const baseOutcome = pointMatrix[playerChoice][aiChoice]
+
+  // Calculate dice influence (scaled down from original)
+  let pointMultiplier = 1
+  let additionalNarrative = ''
+
+  if (diceInfo.diceRoll === 20) {
+    // Critical success - 25% bonus instead of double
+    pointMultiplier = 1.25
+    additionalNarrative = ' Your exceptional skill provides an edge!'
+  } else if (diceInfo.diceRoll === 1) {
+    // Critical failure - 25% penalty instead of half
+    pointMultiplier = 0.75
+    additionalNarrative = ' Your mistake costs you some advantage.'
+  } else if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
+    // Success - 10% bonus instead of 50%
+    pointMultiplier = 1.1
+    additionalNarrative = ' Your competence improves the outcome slightly.'
+  } else {
+    // Failure - 10% penalty instead of 25%
+    pointMultiplier = 0.9
+    additionalNarrative = ' Your struggle reduces the effectiveness of your choice.'
+  }
+
+  // Apply negotiation bonuses
+  if (playerChoice === ChoiceType.NEGOTIATE) {
+    // Successful negotiation roll provides intelligence
+    if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
+      additionalNarrative += ' Your careful negotiation reveals hints about their intentions.'
+    }
+    
+    // Negotiation provides some protection against betrayal
+    if (aiChoice === ChoiceType.BETRAY) {
+      pointMultiplier += 0.15 // Additional 15% protection
+      additionalNarrative += ' Your cautious approach minimizes losses.'
+    }
+  }
+
+  // Calculate final points
+  const finalOutcome = {
+    type: baseOutcome.type,
+    playerPoints: Math.floor(baseOutcome.player * pointMultiplier),
+    aiPoints: baseOutcome.ai,
+    dmPoints: baseOutcome.dm,
+    narrative: generateOutcomeNarrative(baseOutcome.type, playerChoice, aiChoice) + additionalNarrative,
+    intelligence: getIntelligenceGain(playerChoice, aiChoice, diceInfo)
+  }
+
+  return finalOutcome
+}
+
+const generateOutcomeNarrative = (outcomeType, playerChoice, aiChoice) => {
+  const narratives = {
+    [OutcomeType.BOTH_COOPERATE]: 
+      "Trust prevails as both parties honor their commitments.",
+    [OutcomeType.BOTH_NEGOTIATE]: 
+      "A careful dance of compromise leads to mutual benefit.",
+    [OutcomeType.BOTH_BETRAY]: 
+      "Mutual betrayal leaves both parties weakened.",
+    [OutcomeType.COOPERATE_NEGOTIATE]: 
+      "While one seeks common ground, the other maintains full trust.",
+    [OutcomeType.NEGOTIATE_BETRAY]: 
+      "Caution proves wise as betrayal reveals itself, though losses are minimized.",
+    [OutcomeType.BETRAYED]: 
+      "Blind trust meets cruel betrayal.",
+    [OutcomeType.SUCCESSFUL_BETRAY]: 
+      "Betrayal succeeds against naive trust.",
+    [OutcomeType.PARTIAL_BETRAYAL]: 
+      "Betrayal finds limited success against cautious negotiation."
+  }
+
+  return narratives[outcomeType] || "The round concludes with unexpected results."
+}
+
+const getIntelligenceGain = (playerChoice, aiChoice, diceInfo) => {
+  if (playerChoice !== ChoiceType.NEGOTIATE) return null
+
+  // Intelligence gained through negotiation
+  const intelligence = {
+    betrayalLikelihood: 0,
+    futureBonuses: []
+  }
+
+  if (diceInfo.finalResult >= (diceInfo.dcCheck || 10)) {
+    // Successful negotiation provides intelligence
+    intelligence.betrayalLikelihood = aiChoice === ChoiceType.BETRAY ? 0.8 : 0.2
+    intelligence.futureBonuses.push({
+      type: 'insight',
+      duration: 1,
+      bonus: 2,
+      description: 'Recent negotiations provide insight into their methods'
+    })
+  }
+
+  return intelligence
+}
+
+// Enhanced AI choice generation with negotiation
+const generateAiChoice = (gameData, roundId) => {
+  const playerHistory = gameData.players[auth.currentUser.uid].choices || {}
+  const aiHistory = gameData.players.ai.choices || {}
+  
+  // Calculate tendency metrics
+  const playerBetrayalRatio = calculateChoiceRatio(playerHistory, ChoiceType.BETRAY)
+  const playerNegotiationRatio = calculateChoiceRatio(playerHistory, ChoiceType.NEGOTIATE)
+  
+  // Base probabilities
+  let probabilities = {
+    [ChoiceType.COOPERATE]: 0.4,
+    [ChoiceType.NEGOTIATE]: 0.3,
+    [ChoiceType.BETRAY]: 0.3
+  }
+  
+  // Adjust based on player history
+  if (playerBetrayalRatio > 0.5) {
+    // Player betrays often - reduce cooperation, increase negotiation
+    probabilities[ChoiceType.COOPERATE] -= 0.2
+    probabilities[ChoiceType.NEGOTIATE] += 0.1
+    probabilities[ChoiceType.BETRAY] += 0.1
+  }
+  
+  if (playerNegotiationRatio > 0.5) {
+    // Player negotiates often - more likely to cooperate or betray
+    probabilities[ChoiceType.NEGOTIATE] -= 0.1
+    probabilities[ChoiceType.COOPERATE] += 0.05
+    probabilities[ChoiceType.BETRAY] += 0.05
+  }
+  
+  // Round influence
+  const roundProgress = roundId / 5
+  probabilities[ChoiceType.BETRAY] += roundProgress * 0.1 // More likely to betray in later rounds
+  
+  // Normalize probabilities
+  const total = Object.values(probabilities).reduce((a, b) => a + b, 0)
+  Object.keys(probabilities).forEach(key => {
+    probabilities[key] = probabilities[key] / total
+  })
+  
+  // Make choice based on probabilities
+  const random = Math.random()
+  let cumulativeProbability = 0
+  
+  for (const [choice, probability] of Object.entries(probabilities)) {
+    cumulativeProbability += probability
+    if (random <= cumulativeProbability) {
+      return choice
+    }
+  }
+  
+  return ChoiceType.COOPERATE // Fallback
+}
+
+const calculateChoiceRatio = (history, choiceType) => {
+  const choices = Object.values(history)
+  if (choices.length === 0) return 0
+  return choices.filter(c => c === choiceType).length / choices.length
+}
 
 // Create singleton instances for game state
 const currentGame = ref(null)
@@ -139,7 +334,6 @@ const loading = ref(false)
 const playerGames = ref([])
 const loadingGames = ref(false)
 const roundOutcome = ref(null)
-const { generateDMNarration, generateOutcomeNarrative } = useAIDialogue()
 let gameListener = null
 
 export const useGame = () => {
@@ -173,6 +367,24 @@ export const useGame = () => {
                 betrayed: {
                   playerPoints: 0,
                   dmPoints: 2
+                }
+              }
+            },
+            negotiate: {
+              text: 'Propose Modifications',
+              description: 'Suggest alterations to the plan',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
                 }
               }
             },
@@ -215,6 +427,24 @@ export const useGame = () => {
                 }
               }
             },
+            negotiate: {
+              text: 'Selective Protection',
+              description: 'Propose handling evidence strategically',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
+                }
+              }
+            },
             betray: {
               text: 'Secure Leverage',
               description: 'Keep evidence against your partner',
@@ -251,6 +481,24 @@ export const useGame = () => {
                 betrayed: {
                   playerPoints: 0,
                   dmPoints: 2
+                }
+              }
+            },
+            negotiate: {
+              text: 'Split and Regroup',
+              description: 'Propose separate routes to a meeting point',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
                 }
               }
             },
@@ -293,6 +541,24 @@ export const useGame = () => {
                 }
               }
             },
+            negotiate: {
+              text: 'Limited Disclosure',
+              description: 'Share partial information to deflect suspicion',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
+                }
+              }
+            },
             betray: {
               text: 'Offer Evidence',
               description: 'Provide information about your partner',
@@ -332,6 +598,24 @@ export const useGame = () => {
                 }
               }
             },
+            negotiate: {
+              text: 'Partial Partnership',
+              description: 'Propose a weighted split of rewards',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
+                }
+              }
+            },
             betray: {
               text: 'Claim the Prize',
               description: 'Take the opportunity for yourself',
@@ -349,7 +633,7 @@ export const useGame = () => {
           }
         }
       ]
-    },
+    }, 
     {
       id: 'rico-investigation',
       title: 'Operation Paper Trail',
@@ -380,6 +664,24 @@ export const useGame = () => {
                 }
               }
             },
+            negotiate: {
+              text: 'Test the Waters',
+              description: 'Carefully probe for additional information while maintaining cover',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
+                }
+              }
+            },
             betray: {
               text: 'Go Off Script',
               description: 'Improvise to gain their trust faster',
@@ -407,7 +709,7 @@ export const useGame = () => {
           choices: {
             cooperate: {
               text: 'Build Trust First',
-              description: 'Take time to establish credibility before accessing sensitive documents',
+              description: 'Take time to establish credibility before accessing documents',
               outcomes: {
                 bothCooperate: {
                   playerPoints: 3,
@@ -416,6 +718,24 @@ export const useGame = () => {
                 betrayed: {
                   playerPoints: 0,
                   dmPoints: 2
+                }
+              }
+            },
+            negotiate: {
+              text: 'Selective Documentation',
+              description: 'Gather key evidence while appearing to protect their interests',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
                 }
               }
             },
@@ -458,6 +778,24 @@ export const useGame = () => {
                 }
               }
             },
+            negotiate: {
+              text: 'Feigned Interest',
+              description: 'Express interest while seeking information about your handler',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
+                }
+              }
+            },
             betray: {
               text: 'Consider the Offer',
               description: 'Explore what the organization is really proposing',
@@ -494,6 +832,24 @@ export const useGame = () => {
                 betrayed: {
                   playerPoints: 0,
                   dmPoints: 2
+                }
+              }
+            },
+            negotiate: {
+              text: 'Limited Cooperation',
+              description: 'Participate in the investigation while protecting yourself',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
                 }
               }
             },
@@ -536,6 +892,24 @@ export const useGame = () => {
                 }
               }
             },
+            negotiate: {
+              text: 'Parallel Investigation',
+              description: 'Launch the raid while secretly documenting corruption',
+              outcomes: {
+                bothNegotiate: {
+                  playerPoints: 4,
+                  dmPoints: 1
+                },
+                betrayed: {
+                  playerPoints: 1,
+                  dmPoints: 2
+                },
+                successful: {
+                  playerPoints: 3,
+                  dmPoints: 1
+                }
+              }
+            },
             betray: {
               text: 'Investigate Corruption',
               description: 'Delay the raid to expose potential internal corruption',
@@ -555,6 +929,7 @@ export const useGame = () => {
       ]
     }
   ];
+  
 
   // Validate database connection
   const validateDatabaseConnection = () => {
@@ -771,50 +1146,134 @@ export const useGame = () => {
   }
 
   const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
-    const choices = roundData.choices[playerChoice]
-    let outcome
-    
-    // Base outcome determination
-    if (playerChoice === 'cooperate' && aiChoice === 'cooperate') {
-      outcome = choices.outcomes.bothCooperate
-    } else if (playerChoice === 'cooperate' && aiChoice === 'betray') {
-      outcome = choices.outcomes.betrayed
-    } else if (playerChoice === 'betray' && aiChoice === 'cooperate') {
-      outcome = choices.outcomes.successful
-    } else {
-      outcome = choices.outcomes.bothBetray
+    // Point matrix for all possible combinations
+    const pointMatrix = {
+      [ChoiceType.COOPERATE]: {
+        [ChoiceType.COOPERATE]: { 
+          outcome: 'bothCooperate',
+          playerPoints: 3, 
+          aiPoints: 3, 
+          dmPoints: 0,
+          narrative: "Trust prevails as both parties honor their commitments."
+        },
+        [ChoiceType.NEGOTIATE]: { 
+          outcome: 'cooperateNegotiate',
+          playerPoints: 2, 
+          aiPoints: 3, 
+          dmPoints: 1,
+          narrative: "While you maintain full trust, they seek middle ground."
+        },
+        [ChoiceType.BETRAY]: { 
+          outcome: 'betrayed',
+          playerPoints: 0, 
+          aiPoints: 5, 
+          dmPoints: 2,
+          narrative: "Your trust is betrayed completely."
+        }
+      },
+      [ChoiceType.NEGOTIATE]: {
+        [ChoiceType.COOPERATE]: { 
+          outcome: 'cooperateNegotiate',
+          playerPoints: 3, 
+          aiPoints: 2, 
+          dmPoints: 1,
+          narrative: "Your cautious approach meets their full cooperation."
+        },
+        [ChoiceType.NEGOTIATE]: { 
+          outcome: 'bothNegotiate',
+          playerPoints: 4, 
+          aiPoints: 4, 
+          dmPoints: 1,
+          narrative: "A careful dance of compromise leads to mutual benefit."
+        },
+        [ChoiceType.BETRAY]: { 
+          outcome: 'negotiateBetray',
+          playerPoints: 1, 
+          aiPoints: 4, 
+          dmPoints: 2,
+          narrative: "Your cautious approach minimizes the impact of their betrayal."
+        }
+      },
+      [ChoiceType.BETRAY]: {
+        [ChoiceType.COOPERATE]: { 
+          outcome: 'successfulBetray',
+          playerPoints: 5, 
+          aiPoints: 0, 
+          dmPoints: 2,
+          narrative: "Your betrayal catches them completely off guard."
+        },
+        [ChoiceType.NEGOTIATE]: { 
+          outcome: 'partialBetrayal',
+          playerPoints: 4, 
+          aiPoints: 1, 
+          dmPoints: 2,
+          narrative: "Your betrayal succeeds, though their caution lessens the impact."
+        },
+        [ChoiceType.BETRAY]: { 
+          outcome: 'bothBetray',
+          playerPoints: 1, 
+          aiPoints: 1, 
+          dmPoints: 3,
+          narrative: "Mutual betrayal leaves both parties weakened."
+        }
+      }
     }
   
-    // Apply dice roll modifiers
+    // Get base outcome from matrix
+    const baseOutcome = pointMatrix[playerChoice][aiChoice]
+    if (!baseOutcome) {
+      throw new Error(`Invalid outcome combination: ${playerChoice} vs ${aiChoice}`)
+    }
+  
+    // Calculate dice influence (scaled down from original)
     let pointMultiplier = 1
     let additionalNarrative = ''
   
     if (diceInfo.diceRoll === 20) {
-      // Critical success
-      pointMultiplier = 2
-      additionalNarrative = ' Your exceptional skill turns the tide dramatically!'
+      // Critical success - 25% bonus
+      pointMultiplier = 1.25
+      additionalNarrative = ' Your exceptional skill provides an edge!'
     } else if (diceInfo.diceRoll === 1) {
-      // Critical failure
-      pointMultiplier = 0.5
-      additionalNarrative = ' Your attempt spectacularly backfires!'
-    } else if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
-      // Normal success
-      pointMultiplier = 1.5
-      additionalNarrative = ' Your expertise improves the outcome.'
-    } else {
-      // Normal failure
+      // Critical failure - 25% penalty
       pointMultiplier = 0.75
-      additionalNarrative = ' The situation proves more challenging than expected.'
+      additionalNarrative = ' Your mistake costs you some advantage.'
+    } else if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
+      // Success - 10% bonus
+      pointMultiplier = 1.1
+      additionalNarrative = ' Your competence improves the outcome slightly.'
+    } else {
+      // Failure - 10% penalty
+      pointMultiplier = 0.9
+      additionalNarrative = ' Your struggle reduces the effectiveness of your choice.'
     }
-    
-    return {
-      ...outcome,
+  
+    // Apply negotiation bonuses
+    if (playerChoice === ChoiceType.NEGOTIATE) {
+      // Successful negotiation roll provides intelligence
+      if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
+        additionalNarrative += ' Your careful negotiation reveals hints about their intentions.'
+      }
+      
+      // Negotiation provides some protection against betrayal
+      if (aiChoice === ChoiceType.BETRAY) {
+        pointMultiplier += 0.15 // Additional 15% protection
+        additionalNarrative += ' Your cautious approach minimizes losses.'
+      }
+    }
+  
+    // Calculate final outcome
+    const finalOutcome = {
+      type: baseOutcome.outcome,
+      playerPoints: Math.floor(baseOutcome.playerPoints * pointMultiplier),
+      aiPoints: baseOutcome.aiPoints,
+      dmPoints: baseOutcome.dmPoints,
+      narrative: baseOutcome.narrative + additionalNarrative,
       playerChoice,
       aiChoice,
-      narrative: outcome.narrative + additionalNarrative,
-      playerPoints: Math.floor(outcome.playerPoints * pointMultiplier),
       diceRoll: diceInfo
     }
+  
+    return finalOutcome
   }
 
 

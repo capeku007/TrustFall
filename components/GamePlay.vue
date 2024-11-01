@@ -51,7 +51,13 @@
         <!-- DM Narration -->
         <div v-if="currentRound && !showingResults" 
              class="bg-purple-50 rounded-lg shadow-sm p-6 border-2 border-purple-200">
-          <div class="flex items-center mb-4">
+             <h2 class="text-xl font-semibold text-gray-900">
+            {{ currentRound.title }}
+          </h2>
+          <p class="m-2 text-gray-600">{{ currentRound.description }}</p>
+
+          
+             <div class="flex items-center mb-4">
             <div class="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
               <span class="text-2xl">🎭</span>
             </div>
@@ -59,6 +65,7 @@
           </div>
           
           <div class="space-y-3">
+            
   <p v-for="(line, index) in currentNarration" 
      :key="index"
      class="text-purple-800 italic"
@@ -70,10 +77,10 @@
 
         <!-- Round Information -->
         <div v-if="currentRound && !showingResults" class="bg-white rounded-lg shadow-sm p-6">
-          <h2 class="text-xl font-semibold text-gray-900">
+          <!-- <h2 class="text-xl font-semibold text-gray-900">
             {{ currentRound.title }}
           </h2>
-          <p class="mt-2 text-gray-600">{{ currentRound.description }}</p>
+          <p class="mt-2 text-gray-600">{{ currentRound.description }}</p> -->
 
           <!-- Consequences Display -->
           <div v-if="currentGame.consequences && Object.keys(currentGame.consequences).length > 0"
@@ -138,25 +145,35 @@
 </div>
 
           <!-- Choice Buttons -->
-          <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" class="mt-8 grid grid-cols-2 gap-4">
-            <button v-for="(choice, key) in currentRound.choices"
-                    :key="key"
-                    @click="makePlayerChoice(key)"
-                    :disabled="playerChoice !== null"
-                    class="flex flex-col items-center p-6 border-2 rounded-lg transition-colors"
-                    :class="getChoiceButtonClasses(key)">
-              <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-                   :class="key === 'cooperate' ? 'bg-purple-100' : 'bg-red-100'">
-                <span :class="key === 'cooperate' ? 'text-purple-600' : 'text-red-600'">
-                  {{ key === "cooperate" ? "✓" : "✗" }}
-                </span>
-              </div>
-              <h3 class="font-semibold text-gray-900">{{ choice.text }}</h3>
-              <p class="mt-1 text-sm text-gray-500 text-center">
-                {{ choice.description }}
-              </p>
-            </button>
-          </div>
+          <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
+     class="mt-8 grid grid-cols-3 gap-4">
+  <button v-for="(choice, key) in currentRound.choices"
+          :key="key"
+          @click="makePlayerChoice(key)"
+          :disabled="playerChoice !== null"
+          class="flex flex-col items-center p-6 border-2 rounded-lg transition-colors"
+          :class="getChoiceButtonClasses(key)">
+    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3"
+         :class="getChoiceIconClasses(key)">
+      <span :class="getChoiceTextClass(key)">
+        {{ getChoiceIcon(key) }}
+      </span>
+    </div>
+    <h3 class="font-semibold text-gray-900">{{ choice.text }}</h3>
+    <p class="mt-1 text-sm text-gray-500 text-center">
+      {{ choice.description }}
+    </p>
+    <div v-if="choice.bonuses?.length" 
+         class="mt-2 text-xs text-gray-600">
+      <div v-for="bonus in choice.bonuses" 
+           :key="bonus.type" 
+           class="flex items-center">
+        <span class="w-2 h-2 bg-purple-400 rounded-full mr-1"></span>
+        {{ bonus.description }}
+      </div>
+    </div>
+  </button>
+</div>
 
           <!-- Round Outcome Display -->
           <div v-if="roundOutcome" class="mt-6 p-4 bg-gray-50 rounded-lg">
@@ -308,7 +325,45 @@ const getDiceResultMessage = computed(() => {
   return 'Failure'
 })
 
-// Add new methods
+
+const getChoiceIconClasses = (key) => {
+  switch (key) {
+    case 'cooperate':
+      return 'bg-green-100'
+    case 'negotiate':
+      return 'bg-purple-100'
+    case 'betray':
+      return 'bg-red-100'
+    default:
+      return ''
+  }
+}
+
+const getChoiceTextClass = (key) => {
+  switch (key) {
+    case 'cooperate':
+      return 'text-green-600'
+    case 'negotiate':
+      return 'text-purple-600'
+    case 'betray':
+      return 'text-red-600'
+    default:
+      return ''
+  }
+}
+
+const getChoiceIcon = (key) => {
+  switch (key) {
+    case 'cooperate':
+      return '✓'
+    case 'negotiate':
+      return '⟳'
+    case 'betray':
+      return '✗'
+    default:
+      return ''
+  }
+}
 const performDiceRoll = async () => {
   try {
     await rollDice(20) // Using d20 for skill checks

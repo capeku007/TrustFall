@@ -615,13 +615,16 @@ export const useGame = () => {
         throw new Error('Invalid scenario');
       }
   
-      // Generate initial narration for first round
-      const narrativeGenerator = useNarrativeGenerator();
-      const initialNarration = narrativeGenerator.generateDMNarration({ roundNumber: 1 });
-  
-      // Create a deep copy of the scenario and inject the initial narration
-      const gameScenario = JSON.parse(JSON.stringify(scenario));
-      gameScenario.rounds[0].dmNarration = initialNarration;
+      // Generate initial narration based on scenario
+      const narrativeGenerator = useNarrativeGenerator()
+      const initialNarration = await narrativeGenerator.generateDMNarration({
+        roundNumber: 1,
+        scenarioId: scenarioId,
+        previousChoices: {},
+        lastRoundChoice: null,
+        playerHistory: {},
+        aiHistory: {}
+      })
   
       const gameData = {
         scenarioId,
@@ -631,6 +634,9 @@ export const useGame = () => {
         userId: auth.currentUser.uid,
         dmPoints: 0,
         consequences: {},
+        narration: {
+          1: initialNarration // Store initial narration
+        },
         players: {
           [auth.currentUser.uid]: {
             type: 'human',
@@ -643,7 +649,7 @@ export const useGame = () => {
             choices: {}
           }
         },
-        scenario: gameScenario
+        scenario: scenario
       };
   
       const gamesRef = dbRef(database, 'games');

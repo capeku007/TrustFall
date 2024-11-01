@@ -7,7 +7,9 @@ export default defineNuxtConfig({
   },
 
   devtools: { enabled: true },
-
+  runtimeConfig: {
+    openaiApiKey: process.env.NUXT_OPENAI_API_KEY
+  },
   modules: [
     "@nuxtjs/tailwindcss",
     "nuxt-icon",

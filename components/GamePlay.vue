@@ -89,6 +89,54 @@
             </ul>
           </div>
 
+          <!-- Add this section just before your Choice Buttons in the template -->
+<div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
+     class="mb-6 bg-white rounded-lg shadow-sm p-6">
+  <!-- Skill Check Info -->
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
+      <p class="text-sm text-gray-600">
+        DC {{ currentRound.dcCheck || 10 }} 
+        {{ currentRound.skillCheck?.name || 'Deception' }} Check
+      </p>
+    </div>
+    <div class="text-right">
+      <p class="text-sm text-gray-600">
+        Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Dice Rolling Interface -->
+  <div v-if="!diceResult && !isRolling" class="text-center">
+    <button @click="performDiceRoll"
+            class="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+      <span class="mr-2">🎲</span>
+      Roll for {{ currentRound.skillCheck?.name || 'Deception' }}
+    </button>
+  </div>
+
+  <!-- Rolling Animation/Result -->
+  <div v-else class="text-center p-4">
+    <div v-if="isRolling" class="text-2xl font-bold text-purple-600 animate-bounce">
+      Rolling...
+    </div>
+    <div v-else class="space-y-2">
+      <p class="text-2xl font-bold" :class="getDiceResultClass">
+        {{ diceResult }}
+        <span class="text-sm font-normal">
+          ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
+        </span>
+        = {{ finalDiceResult }}
+      </p>
+      <p class="text-sm" :class="getDiceResultClass">
+        {{ getDiceResultMessage }}
+      </p>
+    </div>
+  </div>
+</div>
+
           <!-- Choice Buttons -->
           <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" class="mt-8 grid grid-cols-2 gap-4">
             <button v-for="(choice, key) in currentRound.choices"
@@ -143,6 +191,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useGame } from "~/composables/useGame";
 import { useAuthStore } from "~/stores/authStore";
+import { useDiceRoll } from '~/composables/useDiceRoll'
 
 const props = defineProps({
   gameId: {
@@ -150,7 +199,14 @@ const props = defineProps({
     required: true,
   },
 });
-
+const {
+  diceResult,
+  finalResult,
+  isRolling,
+  currentModifier,
+  rollDice,
+  resetRoll
+} = useDiceRoll()
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -212,8 +268,54 @@ const getChoiceButtonClasses = (key) => {
   };
 };
 
+const diceModifiers = computed(() => {
+  if (!currentGame.value?.consequences) return 0
+  
+  let modifier = 0
+  // Add modifiers based on past consequences
+  Object.values(currentGame.value.consequences).forEach(consequence => {
+    if (consequence.includes('loyalty')) modifier += 2
+    if (consequence.includes('betray')) modifier -= 1
+  })
+  
+  return modifier
+})
+
+const finalDiceResult = computed(() => {
+  if (!diceResult.value) return null
+  return diceResult.value + diceModifiers.value
+})
+
+const getDiceResultClass = computed(() => {
+  if (!finalDiceResult.value) return ''
+  if (diceResult.value === 20) return 'text-green-600'
+  if (diceResult.value === 1) return 'text-red-600'
+  if (finalDiceResult.value >= (currentRound.value?.dcCheck || 10)) return 'text-blue-600'
+  return 'text-gray-600'
+})
+
+const getDiceResultMessage = computed(() => {
+  if (!finalDiceResult.value) return ''
+  if (diceResult.value === 20) return 'Critical Success!'
+  if (diceResult.value === 1) return 'Critical Failure!'
+  if (finalDiceResult.value >= (currentRound.value?.dcCheck || 10)) return 'Success!'
+  return 'Failure'
+})
+
+// Add new methods
+const performDiceRoll = async () => {
+  try {
+    await rollDice(20) // Using d20 for skill checks
+    currentModifier.value = diceModifiers.value
+  } catch (err) {
+    console.error('Error rolling dice:', err)
+  }
+}
+
+// Modify your existing makePlayerChoice method
 const makePlayerChoice = async (choice) => {
   if (playerChoice.value || !currentGame.value || hasRoundBeenPlayed.value) return;
+  if (!diceResult.value && !isRolling.value) return; // Require dice roll before choice
   
   const currentRoundNumber = currentGame.value.currentRound;
   if (currentRoundNumber > 5) return;
@@ -224,7 +326,23 @@ const makePlayerChoice = async (choice) => {
     const gameRef = props.gameId;
     const isFinalRound = currentRoundNumber === 5;
 
-    const result = await makeChoice(gameRef, currentRoundNumber, choice);
+    // Create diceInfo object
+    const diceInfo = {
+      diceRoll: diceResult.value,
+      finalResult: finalDiceResult.value,
+      modifier: diceModifiers.value,
+      isCritical: diceResult.value === 20,
+      isCriticalFail: diceResult.value === 1,
+      dcCheck: currentRound.value?.dcCheck || 10
+    };
+
+    const result = await makeChoice(
+      gameRef, 
+      currentRoundNumber, 
+      choice, 
+      diceInfo  // Pass the diceInfo object
+    );
+    
     roundOutcome.value = result.outcome;
     
     // Show outcome for a few seconds
@@ -240,12 +358,15 @@ const makePlayerChoice = async (choice) => {
       playerChoice.value = null;
       aiChoice.value = null;
       roundOutcome.value = null;
+      resetRoll(); // Reset dice for next round
     }
   } catch (err) {
     console.error('Error making choice:', err);
     error.value = err.message;
   }
 };
+
+
 
 const getWinnerMessage = () => {
   const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0;

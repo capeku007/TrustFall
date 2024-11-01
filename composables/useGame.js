@@ -3,6 +3,134 @@ import { ref, computed } from 'vue'
 import { useFirebase } from './useFirebase'
 import { ref as dbRef, push, set, get, child, onValue, update } from 'firebase/database'
 import { query, orderByChild, equalTo } from 'firebase/database'
+import { useAIDialogue } from './useAIDialogue'
+const ConsequenceType = {
+  LOYALTY: 'loyalty',
+  BETRAYAL: 'betrayal',
+  DECEPTION: 'deception',
+  FAILURE: 'failure',
+  CRITICAL_SUCCESS: 'critical_success',
+  CRITICAL_FAILURE: 'critical_failure'
+}
+
+const consequenceManager = {
+  calculateModifiers(activeConsequences) {
+    const modifiers = {
+      diceRoll: 0,
+      betrayBonus: 0,
+      cooperateBonus: 0,
+      narrative: []
+    }
+
+    if (!Array.isArray(activeConsequences)) return modifiers
+
+    activeConsequences.forEach(consequence => {
+      switch (consequence.type) {
+        case ConsequenceType.LOYALTY:
+          modifiers.diceRoll += 2
+          modifiers.cooperateBonus += 1
+          modifiers.narrative.push("Your reputation for loyalty precedes you")
+          break
+        case ConsequenceType.BETRAYAL:
+          modifiers.diceRoll -= 1
+          modifiers.betrayBonus += 1
+          modifiers.narrative.push("Others regard you with suspicion")
+          break
+        case ConsequenceType.DECEPTION:
+          modifiers.betrayBonus += 1
+          modifiers.narrative.push("Your silver tongue has become well-known")
+          break
+        case ConsequenceType.FAILURE:
+          modifiers.diceRoll -= 1
+          modifiers.narrative.push("Your recent failure still weighs on your mind")
+          break
+        case ConsequenceType.CRITICAL_SUCCESS:
+          modifiers.diceRoll += 1
+          modifiers.narrative.push("Your legendary success has boosted your confidence")
+          break
+        case ConsequenceType.CRITICAL_FAILURE:
+          modifiers.diceRoll -= 2
+          modifiers.narrative.push("The memory of your spectacular failure haunts you")
+          break
+      }
+    })
+
+    return modifiers
+  },
+
+  generateConsequence(choice, diceInfo, baseOutcome) {
+    const consequences = []
+
+    // Add consequence based on choice combination
+    if (choice === 'cooperate' && baseOutcome.playerChoice === 'cooperate') {
+      consequences.push({
+        type: ConsequenceType.LOYALTY,
+        description: "Your loyalty has been noted",
+        duration: 2,
+        modifier: 2
+      })
+    }
+
+    if (choice === 'betray' && baseOutcome.playerPoints > 3) {
+      consequences.push({
+        type: ConsequenceType.DECEPTION,
+        description: "Your deception was masterfully executed",
+        duration: 1,
+        modifier: 1
+      })
+    }
+
+    // Add consequence based on dice roll
+    if (diceInfo.diceRoll === 20) {
+      consequences.push({
+        type: ConsequenceType.CRITICAL_SUCCESS,
+        description: "Your exceptional performance will be remembered",
+        duration: 2,
+        modifier: 1
+      })
+    }
+
+    if (diceInfo.diceRoll === 1) {
+      consequences.push({
+        type: ConsequenceType.CRITICAL_FAILURE,
+        description: "Your dramatic failure has left a lasting impression",
+        duration: 2,
+        modifier: -2
+      })
+    }
+
+    // Add consequence based on final result
+    if (diceInfo.finalResult < (diceInfo.dcCheck || 10)) {
+      consequences.push({
+        type: ConsequenceType.FAILURE,
+        description: "Your failure has weakened your position",
+        duration: 1,
+        modifier: -1
+      })
+    }
+
+    return consequences
+  },
+
+  getConsequenceDescription(type) {
+    switch (type) {
+      case ConsequenceType.LOYALTY:
+        return "+2 to rolls when cooperating"
+      case ConsequenceType.BETRAYAL:
+        return "-1 to all rolls, +1 to betray attempts"
+      case ConsequenceType.DECEPTION:
+        return "+1 to betray attempts"
+      case ConsequenceType.FAILURE:
+        return "-1 to all rolls"
+      case ConsequenceType.CRITICAL_SUCCESS:
+        return "+1 to all rolls"
+      case ConsequenceType.CRITICAL_FAILURE:
+        return "-2 to all rolls"
+      default:
+        return ""
+    }
+  }
+}
 
 // Create singleton instances for game state
 const currentGame = ref(null)
@@ -11,6 +139,7 @@ const loading = ref(false)
 const playerGames = ref([])
 const loadingGames = ref(false)
 const roundOutcome = ref(null)
+const { generateDMNarration, generateOutcomeNarrative } = useAIDialogue()
 let gameListener = null
 
 export const useGame = () => {
@@ -467,11 +596,11 @@ export const useGame = () => {
     return Math.random() < betrayalChance ? 'betray' : 'cooperate'
   }
 
-  // Determine round outcome based on choices
-  const determineOutcome = (playerChoice, aiChoice, roundData) => {
+  const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
     const choices = roundData.choices[playerChoice]
     let outcome
     
+    // Base outcome determination
     if (playerChoice === 'cooperate' && aiChoice === 'cooperate') {
       outcome = choices.outcomes.bothCooperate
     } else if (playerChoice === 'cooperate' && aiChoice === 'betray') {
@@ -481,88 +610,217 @@ export const useGame = () => {
     } else {
       outcome = choices.outcomes.bothBetray
     }
+  
+    // Apply dice roll modifiers
+    let pointMultiplier = 1
+    let additionalNarrative = ''
+  
+    if (diceInfo.diceRoll === 20) {
+      // Critical success
+      pointMultiplier = 2
+      additionalNarrative = ' Your exceptional skill turns the tide dramatically!'
+    } else if (diceInfo.diceRoll === 1) {
+      // Critical failure
+      pointMultiplier = 0.5
+      additionalNarrative = ' Your attempt spectacularly backfires!'
+    } else if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
+      // Normal success
+      pointMultiplier = 1.5
+      additionalNarrative = ' Your expertise improves the outcome.'
+    } else {
+      // Normal failure
+      pointMultiplier = 0.75
+      additionalNarrative = ' The situation proves more challenging than expected.'
+    }
     
     return {
       ...outcome,
       playerChoice,
-      aiChoice
+      aiChoice,
+      narrative: outcome.narrative + additionalNarrative,
+      playerPoints: Math.floor(outcome.playerPoints * pointMultiplier),
+      diceRoll: diceInfo
     }
   }
 
+
   // Enhanced choice making with narrative outcomes
-  const makeChoice = async (gameId, roundId, choice) => {
-    loading.value = true
-    error.value = null
-    roundOutcome.value = null
-  
-    try {
-      validateDatabaseConnection()
-  
-      if (!auth.currentUser) {
-        throw new Error('User must be authenticated')
-      }
-      
-      const gameRef = dbRef(database, `games/${gameId}`)
-      const snapshot = await get(gameRef)
-      
-      if (!snapshot.exists()) {
-        throw new Error('Game not found')
-      }
-  
-      const gameData = snapshot.val()
-  
-      if (gameData.currentRound !== roundId) {
-        throw new Error('Invalid round')
-      }
-  
-      // Generate AI's choice
-      const aiChoice = generateAiChoice(gameData, roundId)
-      
-      // Determine round outcome
-      const currentRound = gameData.scenario.rounds.find(r => r.id === roundId)
-      const outcome = determineOutcome(choice, aiChoice, currentRound)
-      
-      // Prepare updates
-      const updates = {
-        [`players/${auth.currentUser.uid}/choices/${roundId}`]: choice,
-        [`players/${auth.currentUser.uid}/score`]: (gameData.players[auth.currentUser.uid].score || 0) + outcome.playerPoints,
-        [`players/ai/choices/${roundId}`]: aiChoice,
-        [`players/ai/score`]: (gameData.players.ai.score || 0) + (aiChoice === 'betray' ? 2 : 0),
-        dmPoints: (gameData.dmPoints || 0) + outcome.dmPoints,
-      }
-      
-      // Add consequence if it exists
-      if (outcome.consequence) {
-        updates[`consequences/${roundId}`] = outcome.consequence
-      }
-      
-      // Update round or complete game
-      if (roundId === 5) {
-        updates.currentRound = 6
-        updates.status = 'completed'
-      } else {
-        updates.currentRound = roundId + 1
-      }
-      
-      // Batch update
-      await update(gameRef, updates)
-      
-      // Store outcome for UI
-      roundOutcome.value = outcome
-      
-      return {
-        outcome,
-        gameState: currentGame.value
-      }
-      
-    } catch (err) {
-      error.value = err.message
-      console.error('Error making choice:', err)
-      throw err
-    } finally {
-      loading.value = false
+// Helper function to ensure safe values for Firebase
+const ensureSafeValue = (value, fallback = '') => {
+  return value === undefined || value === null ? fallback : value
+}
+
+const makeChoice = async (gameId, roundId, choice, diceInfo) => {
+  loading.value = true
+  error.value = null
+  roundOutcome.value = null
+
+  try {
+    validateDatabaseConnection()
+
+    if (!auth.currentUser) {
+      throw new Error('User must be authenticated')
     }
+
+    const gameRef = dbRef(database, `games/${gameId}`)
+    const snapshot = await get(gameRef)
+
+    if (!snapshot.exists()) {
+      throw new Error('Game not found')
+    }
+
+    const gameData = snapshot.val()
+
+    if (gameData.currentRound !== roundId) {
+      throw new Error('Invalid round')
+    }
+
+    // Get current round data
+    const currentRound = gameData.scenario.rounds.find(r => r.id === roundId)
+    if (!currentRound) {
+      throw new Error('Round not found')
+    }
+
+    // Generate AI's choice
+    const aiChoice = generateAiChoice(gameData, roundId)
+
+    // Calculate base outcome first (this is our fallback narrative source)
+    const baseOutcome = determineOutcome(
+      choice, 
+      aiChoice, 
+      currentRound, 
+      diceInfo || { diceRoll: 10, finalResult: 10 }
+    )
+
+    // Calculate final points
+    const pointMultiplier = (diceInfo?.finalResult >= (currentRound.dcCheck || 10)) ? 1.5 : 0.75
+    const finalPlayerPoints = Math.floor((baseOutcome.playerPoints || 0) * pointMultiplier)
+    const finalAiPoints = aiChoice === 'betray' ? 2 : 0
+    const finalDmPoints = baseOutcome.dmPoints || 0
+
+    // Ensure we have a narrative either from baseOutcome or a fallback
+    let outcomeNarrative = ensureSafeValue(
+      baseOutcome.narrative,
+      "Your choice leads to an uncertain outcome..."
+    )
+
+    try {
+      // Try to get AI-generated narrative
+      const narrativeContext = {
+        roundNumber: roundId,
+        roundTheme: currentRound.title,
+        playerChoice: choice,
+        aiChoice,
+        diceRoll: diceInfo?.diceRoll || 10,
+        finalResult: diceInfo?.finalResult || 10,
+        rollSuccess: (diceInfo?.finalResult || 10) >= (currentRound.dcCheck || 10),
+        consequences: [],
+        previousNarrative: gameData.lastNarrative || '',
+        playerHistory: gameData.players[auth.currentUser.uid].choices || {}
+      }
+
+      const generatedNarrative = await generateOutcomeNarrative(narrativeContext)
+      if (generatedNarrative) {
+        outcomeNarrative = generatedNarrative
+      }
+    } catch (err) {
+      console.error('Narrative generation failed, using base outcome:', err)
+      // We already have a fallback narrative, so we can continue
+    }
+
+    // Prepare safe updates object
+    const updates = {
+      [`players/${auth.currentUser.uid}/choices/${roundId}`]: {
+        choice: ensureSafeValue(choice, 'cooperate'),
+        diceRoll: ensureSafeValue(diceInfo?.diceRoll, 10),
+        finalResult: ensureSafeValue(diceInfo?.finalResult, 10),
+        modifier: ensureSafeValue(diceInfo?.modifier, 0),
+        outcome: {
+          narrative: outcomeNarrative,
+          pointMultiplier: ensureSafeValue(pointMultiplier, 1)
+        }
+      },
+      [`players/${auth.currentUser.uid}/score`]: 
+        ensureSafeValue(gameData.players[auth.currentUser.uid]?.score, 0) + finalPlayerPoints,
+
+      [`players/ai/choices/${roundId}`]: {
+        choice: ensureSafeValue(aiChoice, 'cooperate'),
+        outcome: {
+          points: ensureSafeValue(finalAiPoints, 0)
+        }
+      },
+      [`players/ai/score`]: 
+        ensureSafeValue(gameData.players.ai?.score, 0) + finalAiPoints,
+
+      dmPoints: ensureSafeValue(gameData.dmPoints, 0) + finalDmPoints,
+      lastNarrative: outcomeNarrative,
+      currentRoundStatus: 'completed'
+    }
+
+    // Update round or complete game
+    if (roundId === 5) {
+      updates.currentRound = 6
+      updates.status = 'completed'
+      updates.completedAt = Date.now()
+      updates.finalOutcome = {
+        playerScore: ensureSafeValue(gameData.players[auth.currentUser.uid]?.score, 0) + finalPlayerPoints,
+        aiScore: ensureSafeValue(gameData.players.ai?.score, 0) + finalAiPoints,
+        dmScore: ensureSafeValue(gameData.dmPoints, 0) + finalDmPoints
+      }
+    } else {
+      updates.currentRound = roundId + 1
+    }
+
+    // Try to get next round narration if not final round
+    if (roundId < 5) {
+      const nextRound = gameData.scenario.rounds.find(r => r.id === roundId + 1)
+      if (nextRound) {
+        try {
+          const narrationContext = {
+            roundNumber: roundId + 1,
+            roundTheme: nextRound.title,
+            previousChoice: choice,
+            diceResult: diceInfo?.diceRoll || 10
+          }
+
+          const nextNarration = await generateDMNarration(narrationContext)
+          if (nextNarration && Array.isArray(nextNarration) && nextNarration.length > 0) {
+            updates[`scenario/rounds/${roundId + 1}/dmNarration`] = nextNarration
+          }
+        } catch (err) {
+          console.error('Failed to generate next round narration:', err)
+          // Continue without next round narration
+        }
+      }
+    }
+
+    // Batch update all changes
+    await update(gameRef, updates)
+
+    // Store outcome for UI
+    roundOutcome.value = {
+      narrative: outcomeNarrative,
+      playerPoints: finalPlayerPoints,
+      aiPoints: finalAiPoints,
+      dmPoints: finalDmPoints,
+      pointMultiplier,
+      playerChoice: choice,
+      aiChoice
+    }
+
+    return {
+      outcome: roundOutcome.value,
+      gameState: currentGame.value
+    }
+
+  } catch (err) {
+    error.value = err.message
+    console.error('Error making choice:', err)
+    throw err
+  } finally {
+    loading.value = false
   }
+}
 
   // Computed properties for game state
   const gameStatus = computed(() => currentGame.value?.status || 'inactive')

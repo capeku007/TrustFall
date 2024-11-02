@@ -4,6 +4,7 @@ import { useFirebase } from './useFirebase'
 import { ref as dbRef, push, set, get, child, onValue, update } from 'firebase/database'
 import { query, orderByChild, equalTo } from 'firebase/database'
 import { useAIDialogue } from './useAIDialogue'
+import { useAdaptiveDifficulty } from './useAdaptiveDifficulty'
 const ConsequenceType = {
   LOYALTY: 'loyalty',
   BETRAYAL: 'betrayal',
@@ -930,7 +931,6 @@ export const useGame = () => {
     }
   ];
   
-
   // Validate database connection
   const validateDatabaseConnection = () => {
     if (!database) {
@@ -1047,7 +1047,6 @@ export const useGame = () => {
     }
   };
   
-
   // Fetch game with enhanced error handling
   const fetchGame = async (gameId) => {
     if (!gameId) {
@@ -1276,7 +1275,6 @@ export const useGame = () => {
     return finalOutcome
   }
 
-
   const makeChoice = async (gameId, roundId, choice, diceInfo) => {
     loading.value = true
     error.value = null
@@ -1308,44 +1306,103 @@ export const useGame = () => {
         throw new Error('Round not found')
       }
   
-      // Get previous choices and game history
-      const previousChoices = gameData.players[auth.currentUser.uid]?.choices || {}
-      const aiChoices = gameData.players.ai?.choices || {}
-      
-      // Generate AI's choice
-      const aiChoice = generateAiChoice(gameData, roundId)
-  
-      // Calculate base outcome
-      const baseOutcome = determineOutcome(
-        choice, 
-        aiChoice, 
-        currentRound, 
-        diceInfo || { diceRoll: 10, finalResult: 10 }
+      // Calculate adaptive difficulty
+      const adaptiveDifficulty = useAdaptiveDifficulty()
+      const calculatedDC = adaptiveDifficulty.calculateDC(
+        roundId,
+        gameData.players[auth.currentUser.uid]?.choices || {},
+        gameData.players[auth.currentUser.uid]?.choices?.[roundId - 1]?.diceRoll
       )
   
+      // Update diceInfo with new DC
+      const updatedDiceInfo = {
+        ...diceInfo,
+        dcCheck: calculatedDC,
+        difficultyFeedback: adaptiveDifficulty.getDifficultyFeedback(calculatedDC),
+        difficultyReasons: adaptiveDifficulty.getDifficultyExplanation(
+          calculatedDC,
+          roundId,
+          gameData.players[auth.currentUser.uid]?.choices || {}
+        )
+      }
+  
+      // Generate AI's choice with enhanced context
+      const aiChoice = generateAiChoice(gameData, roundId, {
+        playerChoice: choice,
+        diceResult: updatedDiceInfo,
+        difficulty: calculatedDC
+      })
+  
+      // Calculate base outcome with updated difficulty
+      const baseOutcome = determineOutcome(
+        choice,
+        aiChoice,
+        currentRound,
+        updatedDiceInfo
+      )
+  
+      // Apply difficulty-based modifiers to points
+      let pointMultiplier = 1.0
+      const isCriticalSuccess = updatedDiceInfo.diceRoll === 20
+      const isCriticalFailure = updatedDiceInfo.diceRoll === 1
+  
+      if (isCriticalSuccess) {
+        pointMultiplier = 1.25 // 25% bonus for critical success
+      } else if (isCriticalFailure) {
+        pointMultiplier = 0.5 // 50% penalty for critical failure
+      } else if (updatedDiceInfo.finalResult >= calculatedDC) {
+        pointMultiplier = 1.1 // 10% bonus for success
+      } else {
+        pointMultiplier = 0.75 // 25% penalty for failure
+      }
+  
+      // Additional difficulty modifiers for betrayal attempts
+      if (choice === 'betray') {
+        const consecutiveBetrayals = Object.entries(gameData.players[auth.currentUser.uid]?.choices || {})
+          .sort(([a], [b]) => b - a)
+          .slice(0, 3)
+          .filter(([_, data]) => data.choice === 'betray')
+          .length
+  
+        if (consecutiveBetrayals > 0) {
+          pointMultiplier *= Math.max(0.5, 1 - (consecutiveBetrayals * 0.15))
+        }
+      }
+  
       // Calculate final points
-      const pointMultiplier = (diceInfo?.finalResult >= (currentRound.dcCheck || 10)) ? 1.5 : 0.75
-      const finalPlayerPoints = Math.floor((baseOutcome.playerPoints || 0) * pointMultiplier)
-      const finalAiPoints = aiChoice === 'betray' ? 2 : 0
-      const finalDmPoints = baseOutcome.dmPoints || 0
+      const finalPlayerPoints = Math.floor(baseOutcome.playerPoints * pointMultiplier)
+      const finalAiPoints = baseOutcome.aiPoints
+      const finalDmPoints = baseOutcome.dmPoints
   
-      // Calculate consequences
-      const newConsequences = consequenceManager.generateConsequence(choice, diceInfo, baseOutcome)
+      // Calculate consequences with difficulty context
+      const newConsequences = consequenceManager.generateConsequence(
+        choice,
+        updatedDiceInfo,
+        {
+          ...baseOutcome,
+          difficulty: calculatedDC,
+          pointMultiplier
+        }
+      )
   
-      // Prepare the base updates object
+      // Update difficulty tracking
+      adaptiveDifficulty.updateDifficulty(roundId, choice, updatedDiceInfo)
+  
+      // Prepare updates object
       const updates = {
         [`players/${auth.currentUser.uid}/choices/${roundId}`]: {
-          choice: choice || 'cooperate',
-          diceRoll: diceInfo?.diceRoll || 10,
-          finalResult: diceInfo?.finalResult || 10,
-          modifier: diceInfo?.modifier || 0,
+          choice: choice,
+          diceRoll: updatedDiceInfo.diceRoll,
+          finalResult: updatedDiceInfo.finalResult,
+          difficulty: calculatedDC,
           timestamp: Date.now(),
           outcome: {
-            pointMultiplier: pointMultiplier,
-            points: finalPlayerPoints
+            pointMultiplier,
+            points: finalPlayerPoints,
+            difficultyFeedback: updatedDiceInfo.difficultyFeedback
           }
         },
-        [`players/${auth.currentUser.uid}/score`]: 
+        [`players/${auth.currentUser.uid}/score`]:
           (gameData.players[auth.currentUser.uid]?.score || 0) + finalPlayerPoints,
   
         [`players/ai/choices/${roundId}`]: {
@@ -1355,7 +1412,7 @@ export const useGame = () => {
             points: finalAiPoints
           }
         },
-        [`players/ai/score`]: 
+        [`players/ai/score`]:
           (gameData.players.ai?.score || 0) + finalAiPoints,
   
         dmPoints: (gameData.dmPoints || 0) + finalDmPoints,
@@ -1370,34 +1427,34 @@ export const useGame = () => {
             type: c.type || 'neutral',
             description: c.description || 'The round ends.',
             duration: c.duration || 1,
-            modifier: c.modifier || 0
+            modifier: c.modifier || 0,
+            difficulty: c.difficulty || 0
           }))
         }
       }
   
-      // Handle next round narration if not final round
+      // Generate narration for next round
       if (roundId < 5) {
         const narrativeGenerator = useNarrativeGenerator()
-        let nextRoundNarration = [
-          "The game continues...",
-          "Your choices echo through the shadows..."
-        ]
+        let nextRoundNarration = []
   
         try {
           const generatedNarration = await narrativeGenerator.generateDMNarration({
             roundNumber: roundId + 1,
             scenarioId: gameData.scenarioId,
-            previousChoices,
+            previousChoices: gameData.players[auth.currentUser.uid]?.choices || {},
             lastRoundChoice: {
               playerChoice: choice,
-              aiChoice: aiChoice
+              aiChoice,
+              difficulty: calculatedDC,
+              outcome: baseOutcome
             },
             playerHistory: {
-              ...previousChoices,
-              [roundId]: { choice }
+              ...gameData.players[auth.currentUser.uid]?.choices,
+              [roundId]: { choice, difficulty: calculatedDC }
             },
             aiHistory: {
-              ...aiChoices,
+              ...gameData.players.ai?.choices,
               [roundId]: { choice: aiChoice }
             }
           })
@@ -1407,10 +1464,12 @@ export const useGame = () => {
           }
         } catch (err) {
           console.error('Narration generation error:', err)
-          // Keep default narration
+          nextRoundNarration = [
+            "The stakes continue to rise...",
+            "Your choices echo through the shadows..."
+          ]
         }
   
-        // Store narration in a dedicated path
         updates[`narration/${roundId + 1}`] = nextRoundNarration
         updates.currentRound = roundId + 1
       } else {
@@ -1422,7 +1481,13 @@ export const useGame = () => {
           playerScore: (gameData.players[auth.currentUser.uid]?.score || 0) + finalPlayerPoints,
           aiScore: (gameData.players.ai?.score || 0) + finalAiPoints,
           dmScore: (gameData.dmPoints || 0) + finalDmPoints,
-          finalConsequences: newConsequences || []
+          finalConsequences: newConsequences || [],
+          difficultyProgression: Object.entries(gameData.players[auth.currentUser.uid]?.choices || {})
+            .map(([round, data]) => ({
+              round: parseInt(round),
+              difficulty: data.difficulty,
+              success: data.finalResult >= data.difficulty
+            }))
         }
       }
   
@@ -1438,6 +1503,11 @@ export const useGame = () => {
         pointMultiplier,
         playerChoice: choice,
         aiChoice,
+        difficulty: {
+          dc: calculatedDC,
+          feedback: updatedDiceInfo.difficultyFeedback,
+          reasons: updatedDiceInfo.difficultyReasons
+        },
         consequences: newConsequences || []
       }
   

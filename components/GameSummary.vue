@@ -125,7 +125,6 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGame } from '~/composables/useGame'
 import { useAuthStore } from '~/stores/authStore'
-import { useModal } from '~/composables/useModal'
 
 const props = defineProps({
   gameId: {

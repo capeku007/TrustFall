@@ -74,13 +74,10 @@
   </p>
 </div>
         </div>
+        </div>
 
         <!-- Round Information -->
         <div v-if="currentRound && !showingResults" class="bg-white rounded-lg shadow-sm p-6">
-          <!-- <h2 class="text-xl font-semibold text-gray-900">
-            {{ currentRound.title }}
-          </h2>
-          <p class="mt-2 text-gray-600">{{ currentRound.description }}</p> -->
 
           <!-- Consequences Display -->
           <div v-if="currentGame.consequences && Object.keys(currentGame.consequences).length > 0"
@@ -175,16 +172,31 @@
   </button>
 </div>
 
-          <!-- Round Outcome Display -->
-          <div v-if="roundOutcome" class="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 class="font-semibold text-gray-900 mb-2">Round Outcome:</h3>
-            <p class="text-gray-700 italic mb-2">{{ roundOutcome.narrative }}</p>
-            <div class="flex justify-between text-sm">
-              <span class="text-purple-600">Points Earned: {{ roundOutcome.playerPoints }}</span>
-              <span class="text-gray-600">DM Points: +{{ roundOutcome.dmPoints }}</span>
-            </div>
-          </div>
-        </div>
+          <!-- Replace the existing point modifier display with this -->
+<div v-if="roundOutcome?.pointMultiplier && roundOutcome.pointMultiplier !== 1" 
+     class="mt-4 p-2 bg-purple-50 rounded">
+  <p class="text-sm text-purple-600">
+    Point Modifier: {{ 
+      (roundOutcome.pointMultiplier > 1 ? '+' : '') + 
+      Math.round((roundOutcome.pointMultiplier - 1) * 100) 
+    }}%
+  </p>
+</div>
+
+<!-- Round Outcome Display -->
+<div v-if="roundOutcome && roundOutcome.narrative" 
+     class="mt-6 p-4 bg-gray-50 rounded-lg">
+  <h3 class="font-semibold text-gray-900 mb-2">Round Outcome:</h3>
+  <p class="text-gray-700 italic mb-2">{{ roundOutcome.narrative }}</p>
+  <div class="flex justify-between text-sm">
+    <span class="text-purple-600">
+      Points Earned: {{ roundOutcome.playerPoints || 0 }}
+    </span>
+    <span class="text-gray-600">
+      DM Points: +{{ roundOutcome.dmPoints || 0 }}
+    </span>
+  </div>
+</div>
 
         <!-- Game End Screen -->
         <div v-if="isGameOver" class="mt-8 text-center bg-white rounded-lg shadow-sm p-6">
@@ -242,7 +254,14 @@ const aiChoice = ref(null);
 const showingResults = ref(false);
 const isLoading = ref(true);
 const error = ref(null);
-const roundOutcome = ref(null);
+// State
+const roundOutcome = ref({
+  pointMultiplier: 1,
+  playerPoints: 0,
+  dmPoints: 0,
+  narrative: "",
+});
+
 
 // Computed
 const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
@@ -373,6 +392,7 @@ const performDiceRoll = async () => {
   }
 }
 
+
 // Modify your existing makePlayerChoice method
 const makePlayerChoice = async (choice) => {
   if (playerChoice.value || !currentGame.value || hasRoundBeenPlayed.value) return;
@@ -397,14 +417,26 @@ const makePlayerChoice = async (choice) => {
       dcCheck: currentRound.value?.dcCheck || 10
     };
 
+    // Clear previous outcome before making new choice
+    roundOutcome.value = null;
+
     const result = await makeChoice(
       gameRef, 
       currentRoundNumber, 
       choice, 
-      diceInfo  // Pass the diceInfo object
+      diceInfo
     );
     
-    roundOutcome.value = result.outcome;
+    // Ensure we have a valid result before updating roundOutcome
+    if (result?.outcome) {
+      roundOutcome.value = {
+        ...result.outcome,
+        pointMultiplier: result.outcome.pointMultiplier || 1,
+        playerPoints: result.outcome.playerPoints || 0,
+        dmPoints: result.outcome.dmPoints || 0,
+        narrative: result.outcome.narrative || "The round concludes...",
+      };
+    }
     
     // Show outcome for a few seconds
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -424,6 +456,9 @@ const makePlayerChoice = async (choice) => {
   } catch (err) {
     console.error('Error making choice:', err);
     error.value = err.message;
+    // Reset state on error
+    playerChoice.value = null;
+    roundOutcome.value = null;
   }
 };
 

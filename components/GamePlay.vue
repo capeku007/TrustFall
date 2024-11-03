@@ -98,23 +98,25 @@
 <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
      class="mb-6 bg-white rounded-lg shadow-sm p-6">
   <!-- Skill Check Info -->
-  <div class="flex items-center justify-between mb-4">
-    <div>
-      <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
-      <p class="text-sm text-gray-600">
-        DC {{ currentRound.dcCheck || 7 }} 
-        {{ currentRound.skillCheck?.name || 'Deception' }} Check
-      </p>
-      <p class="text-xs text-gray-500 mt-1">
-        (2d6 + modifier, success on meet or exceed)
-      </p>
-    </div>
-    <div class="text-right">
-      <p class="text-sm text-gray-600">
-        Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
-      </p>
-    </div>
+<!-- Skill Check Info -->
+<div class="flex items-center justify-between mb-4">
+  <div>
+    <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
+    <p class="text-sm text-gray-600">
+      DC {{ currentRound.skillCheck?.dcCheck }} 
+      {{ currentRound.skillCheck?.name || 'Deception' }} Check
+    </p>
+    <p class="text-xs text-gray-500 mt-1">
+      (2d6 + modifier, success on meet or exceed)
+    </p>
   </div>
+  <div class="text-right">
+    <p class="text-sm text-gray-600">
+      Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
+    </p>
+  </div>
+</div>
+
 
   <!-- Dice Rolling Interface -->
   <div v-if="!diceResult && !isRolling" class="text-center">
@@ -127,22 +129,22 @@
 
   <!-- Rolling Animation/Result -->
   <div v-else class="text-center p-4">
-    <div v-if="isRolling" class="text-2xl font-bold text-purple-600 animate-bounce">
-      Rolling...
-    </div>
-    <div v-else class="space-y-2">
-      <p class="text-2xl font-bold" :class="getRollClass(currentRound.dcCheck || 7)">
-        {{ diceResults[0] }} + {{ diceResults[1] }}
-        <span class="text-sm font-normal" v-if="diceModifiers !== 0">
-          ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
-        </span>
-        = {{ finalDiceResult }}
-      </p>
-      <p class="text-sm" :class="getRollClass(currentRound.dcCheck || 7)">
-        {{ getRollDescription(currentRound.dcCheck || 7) }}
-      </p>
-    </div>
+  <div v-if="isRolling" class="text-2xl font-bold text-purple-600 animate-bounce">
+    Rolling...
   </div>
+  <div v-else class="space-y-2">
+    <p class="text-2xl font-bold" :class="getRollClass(currentRound.skillCheck?.dcCheck)">
+      {{ diceResults[0] }} + {{ diceResults[1] }}
+      <span class="text-sm font-normal" v-if="diceModifiers !== 0">
+        ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
+      </span>
+      = {{ finalDiceResult }}
+    </p>
+    <p class="text-sm" :class="getRollClass(currentRound.skillCheck?.dcCheck)">
+      {{ getRollDescription(currentRound.skillCheck?.dcCheck) }}
+    </p>
+  </div>
+</div>
 </div>
           <!-- Choice Buttons -->
           <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 

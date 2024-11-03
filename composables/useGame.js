@@ -101,7 +101,7 @@ const consequenceManager = {
     }
 
     // Add consequence based on final result
-    if (diceInfo.finalResult < (diceInfo.dcCheck || 10)) {
+    if (diceInfo.finalResult < (diceInfo.dcCheck || 4)) {
       consequences.push({
         type: ConsequenceType.FAILURE,
         description: "Your failure has weakened your position",
@@ -411,7 +411,7 @@ export const useGame = () => {
           description: 'An unexpected vault appears during the operation, containing evidence that could incriminate either of you.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 13
+            dcCheck: 9
           },
           choices: {
             cooperate: {
@@ -468,7 +468,7 @@ export const useGame = () => {
           description: 'The authorities are closing in, and separate escape routes become available.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 14
+            dcCheck: 12
           },
           choices: {
             cooperate: {
@@ -525,7 +525,7 @@ export const useGame = () => {
           description: 'A mole is discovered in your operation, and suspicion falls on both of you.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 15
+            dcCheck: 8
           },
           choices: {
             cooperate: {
@@ -582,7 +582,7 @@ export const useGame = () => {
           description: 'A legendary opportunity presents itself, but only one can claim it.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 16
+            dcCheck: 7
           },
           choices: {
             cooperate: {
@@ -648,7 +648,7 @@ export const useGame = () => {
           description: 'You\'ve infiltrated a suspected criminal enterprise as a financial consultant. Your handler has arranged a meeting with the organization\'s leadership.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 13
+            dcCheck: 9
           },
           choices: {
             cooperate: {
@@ -705,7 +705,7 @@ export const useGame = () => {
           description: 'You\'ve discovered irregularities in the organization\'s financial records. Your handler wants immediate documentation, but the organization\'s CFO is watching you closely.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 14
+            dcCheck: 4
           },
           choices: {
             cooperate: {
@@ -762,7 +762,7 @@ export const useGame = () => {
           description: 'Your handler misses a scheduled check-in. The organization offers you a legitimate position with substantial benefits.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 15
+            dcCheck: 5
           },
           choices: {
             cooperate: {
@@ -819,7 +819,7 @@ export const useGame = () => {
           description: 'Another undercover agent has been discovered. The organization is conducting internal investigations.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 16
+            dcCheck: 11
           },
           choices: {
             cooperate: {
@@ -876,7 +876,7 @@ export const useGame = () => {
           description: 'The RICO case is ready, but the organization\'s leader offers evidence of corruption within law enforcement.',
           skillCheck: {
             name: 'Deception',
-            dcCheck: 17
+            dcCheck: 5
           },
           choices: {
             cooperate: {
@@ -1120,28 +1120,180 @@ export const useGame = () => {
   }
 
   // Enhanced AI choice generation based on game state
-  const generateAiChoice = (gameData, roundId) => {
-    const playerHistory = gameData.players[auth.currentUser.uid].choices || {}
-    const aiHistory = gameData.players.ai.choices || {}
+  const generateAiChoice = async (gameData, roundId) => {
+    const { database, auth } = useFirebase()
+    const userId = auth.currentUser.uid
     
-    // Calculate betrayal tendencies
-    const calculateBetrayalRatio = (history) => {
-      const choices = Object.values(history)
-      const betrayals = choices.filter(c => c === 'betray').length
-      return choices.length > 0 ? betrayals / choices.length : 0
+    // Get player's previous games
+    const gamesRef = dbRef(database, 'games')
+    const playerGamesQuery = query(
+      gamesRef,
+      orderByChild('userId'),
+      equalTo(userId)
+    )
+  
+    try {
+      const snapshot = await get(playerGamesQuery)
+      let historicalPatterns = {
+        totalGames: 0,
+        choiceFrequency: {
+          [ChoiceType.COOPERATE]: 0,
+          [ChoiceType.NEGOTIATE]: 0,
+          [ChoiceType.BETRAY]: 0
+        },
+        earlyGamePreference: {}, // Rounds 1-2
+        lateGamePreference: {},  // Rounds 4-5
+        responseToBetrayal: {},  // How they play after being betrayed
+        winningChoices: {}       // Choices that led to wins
+      }
+  
+      if (snapshot.exists()) {
+        // Analyze all previous completed games
+        snapshot.forEach((childSnapshot) => {
+          const game = childSnapshot.val()
+          // Skip current game and incomplete games
+          if (game.id === gameData.id || game.status !== 'completed') return
+          
+          historicalPatterns.totalGames++
+          
+          // Analyze player's choices in this game
+          Object.entries(game.players[userId].choices || {}).forEach(([round, data]) => {
+            const roundNum = parseInt(round)
+            const choice = data.choice
+            
+            // Overall frequency
+            historicalPatterns.choiceFrequency[choice]++
+            
+            // Early vs Late game preferences
+            if (roundNum <= 2) {
+              historicalPatterns.earlyGamePreference[choice] = (historicalPatterns.earlyGamePreference[choice] || 0) + 1
+            } else if (roundNum >= 4) {
+              historicalPatterns.lateGamePreference[choice] = (historicalPatterns.lateGamePreference[choice] || 0) + 1
+            }
+            
+            // Response to betrayal (look at choices after AI betrayal)
+            if (roundNum > 1 && game.players.ai.choices[roundNum - 1].choice === ChoiceType.BETRAY) {
+              historicalPatterns.responseToBetrayal[choice] = (historicalPatterns.responseToBetrayal[choice] || 0) + 1
+            }
+          })
+          
+          // Track choices that led to wins
+          if (game.players[userId].score > game.players.ai.score) {
+            Object.values(game.players[userId].choices).forEach(data => {
+              historicalPatterns.winningChoices[data.choice] = (historicalPatterns.winningChoices[data.choice] || 0) + 1
+            })
+          }
+        })
+      }
+  
+      // Calculate base probabilities using historical data
+      let probabilities = {
+        [ChoiceType.COOPERATE]: 0.33,
+        [ChoiceType.NEGOTIATE]: 0.33,
+        [ChoiceType.BETRAY]: 0.34
+      }
+  
+      if (historicalPatterns.totalGames > 0) {
+        // Pure random choice (20% chance regardless of history)
+        if (Math.random() > 0.8) {
+          return [ChoiceType.COOPERATE, ChoiceType.NEGOTIATE, ChoiceType.BETRAY][Math.floor(Math.random() * 3)]
+        }
+  
+        // Adjust based on historical patterns
+        const totalChoices = Object.values(historicalPatterns.choiceFrequency).reduce((a, b) => a + b, 0)
+        
+        // Counter most frequent choice
+        const mostFrequentChoice = Object.entries(historicalPatterns.choiceFrequency)
+          .sort(([,a], [,b]) => b - a)[0][0]
+          
+        if (roundId <= 2) {
+          // Early game - consider early game patterns
+          const earlyGameTotal = Object.values(historicalPatterns.earlyGamePreference).reduce((a, b) => a + b, 0)
+          if (earlyGameTotal > 0) {
+            Object.entries(historicalPatterns.earlyGamePreference).forEach(([choice, count]) => {
+              // Counter their early game preference
+              const counterChoice = getCounterChoice(choice)
+              probabilities[counterChoice] += 0.2
+            })
+          }
+        } else if (roundId >= 4) {
+          // Late game - use late game patterns
+          const lateGameTotal = Object.values(historicalPatterns.lateGamePreference).reduce((a, b) => a + b, 0)
+          if (lateGameTotal > 0) {
+            Object.entries(historicalPatterns.lateGamePreference).forEach(([choice, count]) => {
+              // Counter their late game preference
+              const counterChoice = getCounterChoice(choice)
+              probabilities[counterChoice] += 0.2
+            })
+          }
+        }
+  
+        // Consider their common responses to betrayal
+        if (gameData.players.ai.choices?.[roundId - 1]?.choice === ChoiceType.BETRAY) {
+          const totalResponses = Object.values(historicalPatterns.responseToBetrayal).reduce((a, b) => a + b, 0)
+          if (totalResponses > 0) {
+            const expectedResponse = Object.entries(historicalPatterns.responseToBetrayal)
+              .sort(([,a], [,b]) => b - a)[0][0]
+            const counterResponse = getCounterChoice(expectedResponse)
+            probabilities[counterResponse] += 0.15
+          }
+        }
+  
+        // Add score-based strategy
+        const aiScore = gameData.players.ai?.score || 0
+        if (roundId === 5) { // Final round
+          if (aiScore < 10) { // Low score - high risk
+            probabilities[ChoiceType.BETRAY] += 0.2
+          } else { // Good score - more balanced
+            probabilities[ChoiceType.NEGOTIATE] += 0.1
+          }
+        }
+      }
+  
+      // Add round-based unpredictability
+      const randomFactor = Math.random() * 0.2
+      Object.keys(probabilities).forEach(key => {
+        probabilities[key] = Math.max(0.1, probabilities[key] + (Math.random() > 0.5 ? randomFactor : -randomFactor))
+      })
+  
+      // Normalize probabilities
+      const total = Object.values(probabilities).reduce((a, b) => a + b, 0)
+      Object.keys(probabilities).forEach(key => {
+        probabilities[key] = probabilities[key] / total
+      })
+  
+      // Make final choice
+      const random = Math.random()
+      let cumulativeProbability = 0
+      
+      for (const [choice, probability] of Object.entries(probabilities)) {
+        cumulativeProbability += probability
+        if (random <= cumulativeProbability) {
+          return choice
+        }
+      }
+  
+      // Random fallback
+      return [ChoiceType.COOPERATE, ChoiceType.NEGOTIATE, ChoiceType.BETRAY][Math.floor(Math.random() * 3)]
+    } catch (err) {
+      console.error('Error analyzing historical data:', err)
+      // Fallback to basic strategy if history analysis fails
+      return [ChoiceType.COOPERATE, ChoiceType.NEGOTIATE, ChoiceType.BETRAY][Math.floor(Math.random() * 3)]
     }
-    
-    const playerBetrayalRatio = calculateBetrayalRatio(playerHistory)
-    
-    // Dynamic AI behavior
-    const baseBetrayalChance = 0.3
-    const historyInfluence = playerBetrayalRatio * 0.3
-    const roundInfluence = (roundId / 5) * 0.2
-    const randomFactor = Math.random() * 0.2
-    
-    const betrayalChance = baseBetrayalChance + historyInfluence + roundInfluence + randomFactor
-    
-    return Math.random() < betrayalChance ? 'betray' : 'cooperate'
+  }
+  
+  // Helper function to determine counter choices
+  const getCounterChoice = (choice) => {
+    switch(choice) {
+      case ChoiceType.COOPERATE:
+        return ChoiceType.BETRAY // Counter cooperation with betrayal
+      case ChoiceType.NEGOTIATE:
+        return ChoiceType.BETRAY // Counter negotiation with betrayal
+      case ChoiceType.BETRAY:
+        return ChoiceType.NEGOTIATE // Counter betrayal with negotiation
+      default:
+        return ChoiceType.NEGOTIATE
+    }
   }
 
   const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
@@ -1151,7 +1303,7 @@ export const useGame = () => {
         [ChoiceType.COOPERATE]: { 
           outcome: 'bothCooperate',
           playerPoints: 3, 
-          aiPoints: 3, 
+          aiPoints: 3,
           dmPoints: 0,
           narrative: "Trust prevails as both parties honor their commitments."
         },
@@ -1165,7 +1317,7 @@ export const useGame = () => {
         [ChoiceType.BETRAY]: { 
           outcome: 'betrayed',
           playerPoints: 0, 
-          aiPoints: 5, 
+          aiPoints: 5,
           dmPoints: 2,
           narrative: "Your trust is betrayed completely."
         }
@@ -1221,205 +1373,184 @@ export const useGame = () => {
     // Get base outcome from matrix
     const baseOutcome = pointMatrix[playerChoice][aiChoice]
     if (!baseOutcome) {
-      throw new Error(`Invalid outcome combination: ${playerChoice} vs ${aiChoice}`)
+      console.error('Invalid choice combination:', { playerChoice, aiChoice });
+      throw new Error('Invalid choice combination');
     }
   
-    // Calculate dice influence (scaled down from original)
-    let pointMultiplier = 1
-    let additionalNarrative = ''
+    // Calculate dice bonus points
+    let diceBonus = 0;
+    let diceNarrative = '';
+    const dcCheck = roundData.skillCheck?.dcCheck || 7;
   
-    if (diceInfo.diceRoll === 20) {
-      // Critical success - 25% bonus
-      pointMultiplier = 1.25
-      additionalNarrative = ' Your exceptional skill provides an edge!'
-    } else if (diceInfo.diceRoll === 1) {
-      // Critical failure - 25% penalty
-      pointMultiplier = 0.75
-      additionalNarrative = ' Your mistake costs you some advantage.'
-    } else if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
-      // Success - 10% bonus
-      pointMultiplier = 1.1
-      additionalNarrative = ' Your competence improves the outcome slightly.'
-    } else {
-      // Failure - 10% penalty
-      pointMultiplier = 0.9
-      additionalNarrative = ' Your struggle reduces the effectiveness of your choice.'
+    // Critical success (rolling 12)
+    if (diceInfo.diceRoll === 12) {
+      diceBonus = 1;
+      diceNarrative = ' Your exceptional skill adds to your success! (+1)';
+    }
+    // Critical failure (rolling 2)
+    else if (diceInfo.diceRoll === 2) {
+      diceBonus = -1;
+      diceNarrative = ' Your mistake costs you dearly. (-1)';
+    }
+    // Normal success (meeting or exceeding DC)
+    else if (diceInfo.finalResult >= dcCheck) {
+      diceBonus = 0.5;
+      diceNarrative = ' Your competence provides a small advantage. (+0.5)';
+    }
+    // Normal failure (below DC)
+    else {
+      diceBonus = 0;
+      diceNarrative = ' Your struggle yields no additional benefit.';
     }
   
-    // Apply negotiation bonuses
+    // Add negotiation bonuses
     if (playerChoice === ChoiceType.NEGOTIATE) {
-      // Successful negotiation roll provides intelligence
-      if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
-        additionalNarrative += ' Your careful negotiation reveals hints about their intentions.'
+      // Successful negotiation provides intelligence
+      if (diceInfo.finalResult >= dcCheck) {
+        diceNarrative += ' Your careful negotiation reveals hints about their intentions.';
       }
       
       // Negotiation provides some protection against betrayal
       if (aiChoice === ChoiceType.BETRAY) {
-        pointMultiplier += 0.15 // Additional 15% protection
-        additionalNarrative += ' Your cautious approach minimizes losses.'
+        diceBonus += 0.5;
+        diceNarrative += ' Your cautious approach earns you an extra advantage. (+0.5)';
       }
     }
+  
+    // Calculate final points (rounded to nearest whole number)
+    const finalPlayerPoints = Math.round(baseOutcome.playerPoints + diceBonus);
   
     // Calculate final outcome
     const finalOutcome = {
       type: baseOutcome.outcome,
-      playerPoints: Math.floor(baseOutcome.playerPoints * pointMultiplier),
-      aiPoints: baseOutcome.aiPoints,
+      playerPoints: Math.max(0, finalPlayerPoints), // Ensure points don't go negative
+      aiPoints: baseOutcome.aiPoints,  // AI points stay constant
       dmPoints: baseOutcome.dmPoints,
-      narrative: baseOutcome.narrative + additionalNarrative,
+      narrative: baseOutcome.narrative + diceNarrative,
       playerChoice,
       aiChoice,
-      diceRoll: diceInfo
+      diceRoll: diceInfo,
+      diceBonus: diceBonus
     }
   
-    return finalOutcome
+    return finalOutcome;
   }
 
   const makeChoice = async (gameId, roundId, choice, diceInfo) => {
-    loading.value = true
-    error.value = null
-    roundOutcome.value = null
+    loading.value = true;
+    error.value = null;
+    roundOutcome.value = null;
   
     try {
-      validateDatabaseConnection()
+      validateDatabaseConnection();
   
       if (!auth.currentUser) {
-        throw new Error('User must be authenticated')
+        throw new Error('User must be authenticated');
       }
   
-      const gameRef = dbRef(database, `games/${gameId}`)
-      const snapshot = await get(gameRef)
+      const gameRef = dbRef(database, `games/${gameId}`);
+      const snapshot = await get(gameRef);
   
       if (!snapshot.exists()) {
-        throw new Error('Game not found')
+        throw new Error('Game not found');
       }
   
-      const gameData = snapshot.val()
+      const gameData = snapshot.val();
   
       if (gameData.currentRound !== roundId) {
-        throw new Error('Invalid round')
+        throw new Error('Invalid round');
       }
   
       // Get current round data
-      const currentRound = gameData.scenario.rounds.find(r => r.id === roundId)
+      const currentRound = gameData.scenario.rounds.find(r => r.id === roundId);
       if (!currentRound) {
-        throw new Error('Round not found')
+        throw new Error('Round not found');
       }
   
-      // Calculate adaptive difficulty
-      const adaptiveDifficulty = useAdaptiveDifficulty()
-      const calculatedDC = adaptiveDifficulty.calculateDC(
-        roundId,
-        gameData.players[auth.currentUser.uid]?.choices || {},
-        gameData.players[auth.currentUser.uid]?.choices?.[roundId - 1]?.diceRoll
-      )
+      // Generate AI's choice
+      const aiChoice = await generateAiChoice(gameData, roundId);
   
-      // Update diceInfo with new DC
-      const updatedDiceInfo = {
-        ...diceInfo,
-        dcCheck: calculatedDC,
-        difficultyFeedback: adaptiveDifficulty.getDifficultyFeedback(calculatedDC),
-        difficultyReasons: adaptiveDifficulty.getDifficultyExplanation(
-          calculatedDC,
-          roundId,
-          gameData.players[auth.currentUser.uid]?.choices || {}
-        )
-      }
-  
-      // Generate AI's choice with enhanced context
-      const aiChoice = generateAiChoice(gameData, roundId, {
-        playerChoice: choice,
-        diceResult: updatedDiceInfo,
-        difficulty: calculatedDC
-      })
-  
-      // Calculate base outcome with updated difficulty
+      // Calculate base outcome
       const baseOutcome = determineOutcome(
         choice,
         aiChoice,
         currentRound,
-        updatedDiceInfo
-      )
+        diceInfo
+      );
   
-      // Apply difficulty-based modifiers to points
-      let pointMultiplier = 1.0
-      const isCriticalSuccess = updatedDiceInfo.diceRoll === 20
-      const isCriticalFailure = updatedDiceInfo.diceRoll === 1
+      // Calculate base difficulty
+      const calculatedDC = currentRound.skillCheck?.dcCheck || 7;
+  
+      // Apply difficulty-based modifiers to player points
+      let pointMultiplier = 1.0;
+      const isCriticalSuccess = diceInfo.diceRoll === 12;
+      const isCriticalFailure = diceInfo.diceRoll === 2;
   
       if (isCriticalSuccess) {
-        pointMultiplier = 1.25 // 25% bonus for critical success
+        pointMultiplier = 1.25;
       } else if (isCriticalFailure) {
-        pointMultiplier = 0.5 // 50% penalty for critical failure
-      } else if (updatedDiceInfo.finalResult >= calculatedDC) {
-        pointMultiplier = 1.1 // 10% bonus for success
+        pointMultiplier = 0.75;
+      } else if (diceInfo.finalResult >= calculatedDC) {
+        pointMultiplier = 1.1;
       } else {
-        pointMultiplier = 0.75 // 25% penalty for failure
-      }
-  
-      // Additional difficulty modifiers for betrayal attempts
-      if (choice === 'betray') {
-        const consecutiveBetrayals = Object.entries(gameData.players[auth.currentUser.uid]?.choices || {})
-          .sort(([a], [b]) => b - a)
-          .slice(0, 3)
-          .filter(([_, data]) => data.choice === 'betray')
-          .length
-  
-        if (consecutiveBetrayals > 0) {
-          pointMultiplier *= Math.max(0.5, 1 - (consecutiveBetrayals * 0.15))
-        }
+        pointMultiplier = 0.9;
       }
   
       // Calculate final points
-      const finalPlayerPoints = Math.floor(baseOutcome.playerPoints * pointMultiplier)
-      const finalAiPoints = baseOutcome.aiPoints
-      const finalDmPoints = baseOutcome.dmPoints
+      const calculateRoundScore = (basePoints, multiplier) => {
+        return Math.floor(basePoints * multiplier);
+      };
   
-      // Calculate consequences with difficulty context
+      const calculateRunningScore = (choices) => {
+        if (!choices) return 0;
+        return Object.entries(choices).reduce((total, [_, data]) => {
+          return total + (data.pointsEarned || 0);
+        }, 0);
+      };
+  
+      const finalPlayerPoints = calculateRoundScore(baseOutcome.playerPoints, pointMultiplier);
+      const finalAiPoints = baseOutcome.aiPoints; // AI points are not modified by dice
+      const finalDmPoints = baseOutcome.dmPoints;
+  
+      // Prepare the round's data
+      const roundData = {
+        choice: choice,
+        diceRoll: diceInfo.diceRoll,
+        finalResult: diceInfo.finalResult,
+        difficulty: calculatedDC,
+        timestamp: Date.now(),
+        pointsEarned: finalPlayerPoints,
+        success: diceInfo.finalResult >= calculatedDC
+      };
+  
+      // Prepare updates object
+      const updates = {
+        [`players/${auth.currentUser.uid}/choices/${roundId}`]: roundData,
+        [`players/${auth.currentUser.uid}/score`]: calculateRunningScore(gameData.players[auth.currentUser.uid]?.choices) + finalPlayerPoints,
+        [`players/ai/choices/${roundId}`]: {
+          choice: aiChoice,
+          timestamp: Date.now(),
+          pointsEarned: finalAiPoints
+        },
+        [`players/ai/score`]: calculateRunningScore(gameData.players.ai?.choices) + finalAiPoints,
+        dmPoints: (gameData.dmPoints || 0) + finalDmPoints,
+        currentRoundStatus: 'completed'
+      };
+  
+      // Handle consequences
       const newConsequences = consequenceManager.generateConsequence(
         choice,
-        updatedDiceInfo,
+        {
+          ...diceInfo,
+          dcCheck: calculatedDC
+        },
         {
           ...baseOutcome,
           difficulty: calculatedDC,
           pointMultiplier
         }
-      )
+      );
   
-      // Update difficulty tracking
-      adaptiveDifficulty.updateDifficulty(roundId, choice, updatedDiceInfo)
-  
-      // Prepare updates object
-      const updates = {
-        [`players/${auth.currentUser.uid}/choices/${roundId}`]: {
-          choice: choice,
-          diceRoll: updatedDiceInfo.diceRoll,
-          finalResult: updatedDiceInfo.finalResult,
-          difficulty: calculatedDC,
-          timestamp: Date.now(),
-          outcome: {
-            pointMultiplier,
-            points: finalPlayerPoints,
-            difficultyFeedback: updatedDiceInfo.difficultyFeedback
-          }
-        },
-        [`players/${auth.currentUser.uid}/score`]:
-          (gameData.players[auth.currentUser.uid]?.score || 0) + finalPlayerPoints,
-  
-        [`players/ai/choices/${roundId}`]: {
-          choice: aiChoice,
-          timestamp: Date.now(),
-          outcome: {
-            points: finalAiPoints
-          }
-        },
-        [`players/ai/score`]:
-          (gameData.players.ai?.score || 0) + finalAiPoints,
-  
-        dmPoints: (gameData.dmPoints || 0) + finalDmPoints,
-        currentRoundStatus: 'completed'
-      }
-  
-      // Add consequences if any
       if (newConsequences && newConsequences.length > 0) {
         updates.consequences = {
           ...gameData.consequences,
@@ -1427,74 +1558,86 @@ export const useGame = () => {
             type: c.type || 'neutral',
             description: c.description || 'The round ends.',
             duration: c.duration || 1,
-            modifier: c.modifier || 0,
-            difficulty: c.difficulty || 0
+            modifier: c.modifier || 0
           }))
-        }
+        };
       }
   
-      // Generate narration for next round
-      if (roundId < 5) {
-        const narrativeGenerator = useNarrativeGenerator()
-        let nextRoundNarration = []
+      // Handle round completion
+      if (roundId >= 5) {
+        // Create difficulty progression for all rounds including current
+        const createDifficultyProgression = (choices, currentRound) => {
+          const progression = [];
+          
+          // Add previous rounds
+          if (choices) {
+            Object.entries(choices).forEach(([round, data]) => {
+              if (data.difficulty !== undefined && data.success !== undefined) {
+                progression.push({
+                  round: parseInt(round),
+                  difficulty: data.difficulty,
+                  success: data.success
+                });
+              }
+            });
+          }
+          
+          // Add current round
+          progression.push({
+            round: roundId,
+            difficulty: calculatedDC,
+            success: diceInfo.finalResult >= calculatedDC
+          });
+          
+          return progression.sort((a, b) => a.round - b.round);
+        };
   
+        updates.currentRound = 6;
+        updates.status = 'completed';
+        updates.completedAt = Date.now();
+        updates.finalOutcome = {
+          playerScore: updates[`players/${auth.currentUser.uid}/score`],
+          aiScore: updates[`players/ai/score`],
+          dmScore: updates.dmPoints,
+          finalConsequences: newConsequences || [],
+          difficultyProgression: createDifficultyProgression(
+            gameData.players[auth.currentUser.uid]?.choices,
+            roundData
+          )
+        };
+      } else {
+        // Generate narration for next round
+        const narrativeGenerator = useNarrativeGenerator();
         try {
-          const generatedNarration = await narrativeGenerator.generateDMNarration({
+          const nextRoundNarration = await narrativeGenerator.generateDMNarration({
             roundNumber: roundId + 1,
             scenarioId: gameData.scenarioId,
-            previousChoices: gameData.players[auth.currentUser.uid]?.choices || {},
+            previousChoices: {
+              ...gameData.players[auth.currentUser.uid]?.choices,
+              [roundId]: { choice, difficulty: calculatedDC }
+            },
             lastRoundChoice: {
               playerChoice: choice,
               aiChoice,
               difficulty: calculatedDC,
               outcome: baseOutcome
-            },
-            playerHistory: {
-              ...gameData.players[auth.currentUser.uid]?.choices,
-              [roundId]: { choice, difficulty: calculatedDC }
-            },
-            aiHistory: {
-              ...gameData.players.ai?.choices,
-              [roundId]: { choice: aiChoice }
             }
-          })
+          });
   
-          if (Array.isArray(generatedNarration) && generatedNarration.length > 0) {
-            nextRoundNarration = generatedNarration
+          if (Array.isArray(nextRoundNarration) && nextRoundNarration.length > 0) {
+            updates[`narration/${roundId + 1}`] = nextRoundNarration;
           }
         } catch (err) {
-          console.error('Narration generation error:', err)
-          nextRoundNarration = [
+          console.error('Narration generation error:', err);
+          updates[`narration/${roundId + 1}`] = [
             "The stakes continue to rise...",
             "Your choices echo through the shadows..."
-          ]
+          ];
         }
-  
-        updates[`narration/${roundId + 1}`] = nextRoundNarration
-        updates.currentRound = roundId + 1
-      } else {
-        // Final round updates
-        updates.currentRound = 6
-        updates.status = 'completed'
-        updates.completedAt = Date.now()
-        updates.finalOutcome = {
-          playerScore: (gameData.players[auth.currentUser.uid]?.score || 0) + finalPlayerPoints,
-          aiScore: (gameData.players.ai?.score || 0) + finalAiPoints,
-          dmScore: (gameData.dmPoints || 0) + finalDmPoints,
-          finalConsequences: newConsequences || [],
-          difficultyProgression: Object.entries(gameData.players[auth.currentUser.uid]?.choices || {})
-            .map(([round, data]) => ({
-              round: parseInt(round),
-              difficulty: data.difficulty,
-              success: data.finalResult >= data.difficulty
-            }))
-        }
+        updates.currentRound = roundId + 1;
       }
   
-      // Batch update all changes
-      await update(gameRef, updates)
-  
-      // Store outcome for UI
+      // Store round outcome for UI
       roundOutcome.value = {
         narrative: baseOutcome.narrative || "The round concludes...",
         playerPoints: finalPlayerPoints,
@@ -1505,25 +1648,27 @@ export const useGame = () => {
         aiChoice,
         difficulty: {
           dc: calculatedDC,
-          feedback: updatedDiceInfo.difficultyFeedback,
-          reasons: updatedDiceInfo.difficultyReasons
+          success: diceInfo.finalResult >= calculatedDC
         },
         consequences: newConsequences || []
-      }
+      };
+  
+      // Batch update all changes
+      await update(gameRef, updates);
   
       return {
         outcome: roundOutcome.value,
         gameState: currentGame.value
-      }
+      };
   
     } catch (err) {
-      error.value = err.message
-      console.error('Error making choice:', err)
-      throw err
+      error.value = err.message;
+      console.error('Error making choice:', err);
+      throw err;
     } finally {
-      loading.value = false
+      loading.value = false;
     }
-  }
+  };
 
 // Helper function to ensure safe values for Firebase
 const ensureSafeValue = (value, fallback = '') => {

@@ -94,6 +94,7 @@
           </div>
 
           <!-- Add this section just before your Choice Buttons in the template -->
+<!-- Add this section just before your Choice Buttons in the template -->
 <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
      class="mb-6 bg-white rounded-lg shadow-sm p-6">
   <!-- Skill Check Info -->
@@ -101,8 +102,11 @@
     <div>
       <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
       <p class="text-sm text-gray-600">
-        DC {{ currentRound.dcCheck || 10 }} 
+        DC {{ currentRound.dcCheck || 7 }} 
         {{ currentRound.skillCheck?.name || 'Deception' }} Check
+      </p>
+      <p class="text-xs text-gray-500 mt-1">
+        (2d6 + modifier, success on meet or exceed)
       </p>
     </div>
     <div class="text-right">
@@ -127,20 +131,19 @@
       Rolling...
     </div>
     <div v-else class="space-y-2">
-      <p class="text-2xl font-bold" :class="getDiceResultClass">
-        {{ diceResult }}
-        <span class="text-sm font-normal">
+      <p class="text-2xl font-bold" :class="getRollClass(currentRound.dcCheck || 7)">
+        {{ diceResults[0] }} + {{ diceResults[1] }}
+        <span class="text-sm font-normal" v-if="diceModifiers !== 0">
           ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
         </span>
         = {{ finalDiceResult }}
       </p>
-      <p class="text-sm" :class="getDiceResultClass">
-        {{ getDiceResultMessage }}
+      <p class="text-sm" :class="getRollClass(currentRound.dcCheck || 7)">
+        {{ getRollDescription(currentRound.dcCheck || 7) }}
       </p>
     </div>
   </div>
 </div>
-
           <!-- Choice Buttons -->
           <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
      class="mt-8 grid grid-cols-3 gap-4">
@@ -230,11 +233,14 @@ const props = defineProps({
 });
 const {
   diceResult,
-  finalResult,
+  diceResults,
+  finalResult: finalDiceResult,
   isRolling,
   currentModifier,
   rollDice,
-  resetRoll
+  resetRoll,
+  getRollClass,
+  getRollDescription
 } = useDiceRoll()
 const route = useRoute();
 const router = useRouter();
@@ -262,6 +268,24 @@ const roundOutcome = ref({
   narrative: "",
 });
 
+const getDiceResultClass = computed(() => {
+  if (!finalDiceResult.value) return ''
+  return getRollClass(currentRound.value?.dcCheck || 7)
+})
+
+const getDiceResultMessage = computed(() => {
+  if (!finalDiceResult.value) return ''
+  return getRollDescription(currentRound.value?.dcCheck || 7)
+})
+
+const performDiceRoll = async () => {
+  try {
+    await rollDice()
+    currentModifier.value = diceModifiers.value
+  } catch (err) {
+    console.error('Error rolling dice:', err)
+  }
+}
 
 // Computed
 const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
@@ -323,26 +347,8 @@ const diceModifiers = computed(() => {
   return modifier
 })
 
-const finalDiceResult = computed(() => {
-  if (!diceResult.value) return null
-  return diceResult.value + diceModifiers.value
-})
 
-const getDiceResultClass = computed(() => {
-  if (!finalDiceResult.value) return ''
-  if (diceResult.value === 20) return 'text-green-600'
-  if (diceResult.value === 1) return 'text-red-600'
-  if (finalDiceResult.value >= (currentRound.value?.dcCheck || 10)) return 'text-blue-600'
-  return 'text-gray-600'
-})
 
-const getDiceResultMessage = computed(() => {
-  if (!finalDiceResult.value) return ''
-  if (diceResult.value === 20) return 'Critical Success!'
-  if (diceResult.value === 1) return 'Critical Failure!'
-  if (finalDiceResult.value >= (currentRound.value?.dcCheck || 10)) return 'Success!'
-  return 'Failure'
-})
 
 
 const getChoiceIconClasses = (key) => {
@@ -381,14 +387,6 @@ const getChoiceIcon = (key) => {
       return '✗'
     default:
       return ''
-  }
-}
-const performDiceRoll = async () => {
-  try {
-    await rollDice(20) // Using d20 for skill checks
-    currentModifier.value = diceModifiers.value
-  } catch (err) {
-    console.error('Error rolling dice:', err)
   }
 }
 

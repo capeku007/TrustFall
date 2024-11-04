@@ -141,7 +141,8 @@
           </div>
 
 <!-- Choice Buttons -->
-<div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed && diceResult && currentGame.currentScene?.choices" 
+<!-- Choice Buttons -->
+<div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed && diceResult && currentGame?.currentScene?.choices" 
      class="mt-8 grid grid-cols-3 gap-4">
   <button v-for="(choice, key) in currentGame.currentScene.choices"
           :key="key"
@@ -169,7 +170,6 @@
     </div>
   </button>
 </div>
-
           <!-- Round Outcome -->
           <div v-if="roundOutcome?.narrative" 
                class="mt-6 p-4 bg-gray-50 rounded-lg">
@@ -306,9 +306,7 @@ const currentRound = computed(() => {
 
 
 
-
-
-
+// Icon classes for each choice type
 const getChoiceIconClasses = (key) => {
   switch (key) {
     case 'cooperate':
@@ -322,6 +320,7 @@ const getChoiceIconClasses = (key) => {
   }
 }
 
+// Text color classes for each choice type
 const getChoiceTextClass = (key) => {
   switch (key) {
     case 'cooperate':
@@ -335,6 +334,7 @@ const getChoiceTextClass = (key) => {
   }
 }
 
+// Icons for each choice type
 const getChoiceIcon = (key) => {
   switch (key) {
     case 'cooperate':
@@ -346,6 +346,27 @@ const getChoiceIcon = (key) => {
     default:
       return ''
   }
+}
+
+// Button classes including hover and active states
+const getChoiceButtonClasses = (key) => {
+  const baseClasses = 'flex flex-col items-center p-6 border-2 rounded-lg transition-colors'
+  const activeClasses = {
+    cooperate: 'border-green-500 bg-green-50',
+    negotiate: 'border-purple-500 bg-purple-50',
+    betray: 'border-red-500 bg-red-50'
+  }
+  const inactiveClasses = {
+    cooperate: 'hover:border-green-500 hover:bg-green-50',
+    negotiate: 'hover:border-purple-500 hover:bg-purple-50',
+    betray: 'hover:border-red-500 hover:bg-red-50'
+  }
+
+  if (playerChoice.value === key) {
+    return `${baseClasses} ${activeClasses[key]}`
+  }
+  
+  return `${baseClasses} border-gray-200 ${inactiveClasses[key]}`
 }
 
 
@@ -452,50 +473,29 @@ const diceModifiers = computed(() => {
 })
 
 // Update the choice button class handling
-const getChoiceButtonClasses = (key) => {
-  const baseClasses = 'flex flex-col items-center p-6 border-2 rounded-lg transition-colors'
-  const activeClasses = {
-    cooperate: 'border-green-500 bg-green-50',
-    negotiate: 'border-purple-500 bg-purple-50',
-    betray: 'border-red-500 bg-red-50'
-  }
-  const inactiveClasses = {
-    cooperate: 'hover:border-green-500 hover:bg-green-50',
-    negotiate: 'hover:border-purple-500 hover:bg-purple-50',
-    betray: 'hover:border-red-500 hover:bg-red-50'
-  }
-
-  if (playerChoice.value === key) {
-    return `${baseClasses} ${activeClasses[key]}`
-  }
-  
-  return `${baseClasses} border-gray-200 ${inactiveClasses[key]}`
-}
-
-// Updated makePlayerChoice method
 const makePlayerChoice = async (choice) => {
-  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return
-  if (!diceResult.value && !isRolling.value) return
+  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return;
+  if (!diceResult.value && !isRolling.value) return;
   
-  playerChoice.value = choice
+  playerChoice.value = choice;
   
   try {
     const diceInfo = {
       diceRoll: diceResult.value,
       finalResult: finalDiceResult.value,
       modifier: diceModifiers.value,
-      isCritical: diceResult.value === 12, // Using 2d6, so max is 12
-      isCriticalFail: diceResult.value === 2, // Min is 2 with 2d6
+      isCritical: diceResult.value === 12,
+      isCriticalFail: diceResult.value === 2,
       dcCheck: currentGame.value.currentScene.skillCheck?.dcCheck || 10
-    }
+    };
 
-    roundOutcome.value = null
+    roundOutcome.value = null;
 
     const result = await makeChoice(
       props.gameId,
       choice,
       diceInfo
-    )
+    );
 
     if (result?.outcome) {
       roundOutcome.value = {
@@ -504,44 +504,50 @@ const makePlayerChoice = async (choice) => {
         playerPoints: result.outcome.playerPoints || 0,
         dmPoints: result.outcome.dmPoints || 0,
         narrative: result.outcome.narrative || "The round concludes..."
-      }
+      };
     }
 
-    // Show outcome for a few seconds
-    await new Promise(resolve => setTimeout(resolve, 3000))
+    // Show outcome briefly
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
+    // Progress to next round or end game
     if (result.nextScene) {
-      playerChoice.value = null
-      aiChoice.value = null
-      roundOutcome.value = null
-      resetRoll()
+      playerChoice.value = null;
+      aiChoice.value = null;
+      roundOutcome.value = null;
+      resetRoll();
     } else {
-      showingResults.value = true
+      showingResults.value = true;
       if (isComponentMounted.value) {
-        emit('game-complete')
+        emit('game-complete');
       }
     }
   } catch (err) {
-    console.error('Error making choice:', err)
-    error.value = err.message
-    playerChoice.value = null
-    roundOutcome.value = null
+    console.error('Error making choice:', err);
+    error.value = err.message;
+    playerChoice.value = null;
+    roundOutcome.value = null;
   }
-}
+};
+
+
 
 // Update watching for round changes
 watch(
   () => currentGame.value?.currentScene,
-  (newScene) => {
-    if (newScene) {
+  (newScene, oldScene) => {
+    if (newScene && newScene !== oldScene) {
       // Reset state for new scene
-      playerChoice.value = null
-      aiChoice.value = null
-      roundOutcome.value = null
-      resetRoll()
+      playerChoice.value = null;
+      aiChoice.value = null;
+      roundOutcome.value = null;
+      resetRoll();
+      // Reset any other relevant state
+      showingResults.value = false;
     }
-  }
-)
+  },
+  { deep: true }
+);
 </script>
 
 <style scoped>

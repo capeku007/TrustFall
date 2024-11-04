@@ -346,596 +346,6 @@ let gameListener = null
 export const useGame = () => {
   const { database, auth } = useFirebase()
 
-  const scenarios = [
-    {
-      id: 'shadow-syndicate',
-      title: 'The Shadow Syndicate',
-      description: 'A tale of intrigue in the criminal underworld where trust is currency and betrayal is always profitable... for someone.',
-      image: '/scenarios/shadow-syndicate.jpg',
-      dmPoints: 0,
-      rounds: [
-        {
-          id: 1,
-          title: 'The Underground Meeting',
-          description: 'In a dimly lit basement of The Rusty Anchor tavern, you and your partner plan a major heist.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 12
-          },
-          choices: {
-            cooperate: {
-              text: 'Honor the Partnership',
-              description: 'Stay true to your original plan',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Propose Modifications',
-              description: 'Suggest alterations to the plan',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Accept the Private Offer',
-              description: 'Sign the separate deal',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 2,
-          title: 'The Vault',
-          description: 'An unexpected vault appears during the operation, containing evidence that could incriminate either of you.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 9
-          },
-          choices: {
-            cooperate: {
-              text: 'Destroy All Evidence',
-              description: 'Ensure both parties\' safety',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Selective Protection',
-              description: 'Propose handling evidence strategically',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Secure Leverage',
-              description: 'Keep evidence against your partner',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 3,
-          title: 'The Escape',
-          description: 'The authorities are closing in, and separate escape routes become available.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 12
-          },
-          choices: {
-            cooperate: {
-              text: 'Stick Together',
-              description: 'Escape using the original plan',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Split and Regroup',
-              description: 'Propose separate routes to a meeting point',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Take the Private Exit',
-              description: 'Accept the individual escape offer',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 4,
-          title: 'The Investigation',
-          description: 'A mole is discovered in your operation, and suspicion falls on both of you.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 8
-          },
-          choices: {
-            cooperate: {
-              text: 'Maintain Solidarity',
-              description: 'Refuse to play the blame game',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Limited Disclosure',
-              description: 'Share partial information to deflect suspicion',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Offer Evidence',
-              description: 'Provide information about your partner',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 5,
-          title: 'The Final Score',
-          description: 'A legendary opportunity presents itself, but only one can claim it.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 7
-          },
-          choices: {
-            cooperate: {
-              text: 'Share the Opportunity',
-              description: 'Propose a joint venture',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Partial Partnership',
-              description: 'Propose a weighted split of rewards',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Claim the Prize',
-              description: 'Take the opportunity for yourself',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        }
-      ]
-    }, 
-    {
-      id: 'rico-investigation',
-      title: 'Operation Paper Trail',
-      description: 'As an undercover agent investigating a powerful criminal enterprise, you must gather evidence while maintaining your cover. Your handler might be compromised, and every choice could expose your true identity.',
-      image: '/scenarios/rico-investigation.jpg',
-      dmPoints: 0,
-      rounds: [
-        {
-          id: 1,
-          title: 'The Introduction',
-          description: 'You\'ve infiltrated a suspected criminal enterprise as a financial consultant. Your handler has arranged a meeting with the organization\'s leadership.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 9
-          },
-          choices: {
-            cooperate: {
-              text: 'Follow Protocol',
-              description: 'Stick to your cover story and established procedures',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Test the Waters',
-              description: 'Carefully probe for additional information while maintaining cover',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Go Off Script',
-              description: 'Improvise to gain their trust faster',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 2,
-          title: 'The Paper Trail',
-          description: 'You\'ve discovered irregularities in the organization\'s financial records. Your handler wants immediate documentation, but the organization\'s CFO is watching you closely.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 4
-          },
-          choices: {
-            cooperate: {
-              text: 'Build Trust First',
-              description: 'Take time to establish credibility before accessing documents',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Selective Documentation',
-              description: 'Gather key evidence while appearing to protect their interests',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Seize the Opportunity',
-              description: 'Risk copying the documents immediately',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 3,
-          title: 'The Double Cross',
-          description: 'Your handler misses a scheduled check-in. The organization offers you a legitimate position with substantial benefits.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 5
-          },
-          choices: {
-            cooperate: {
-              text: 'Maintain Cover',
-              description: 'Continue the investigation despite radio silence',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Feigned Interest',
-              description: 'Express interest while seeking information about your handler',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Consider the Offer',
-              description: 'Explore what the organization is really proposing',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 4,
-          title: 'The Exposure',
-          description: 'Another undercover agent has been discovered. The organization is conducting internal investigations.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 11
-          },
-          choices: {
-            cooperate: {
-              text: 'Stand Firm',
-              description: 'Maintain your cover story under intense scrutiny',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Limited Cooperation',
-              description: 'Participate in the investigation while protecting yourself',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Shift Suspicion',
-              description: 'Implicate others to protect yourself',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        },
-        {
-          id: 5,
-          title: 'The Takedown',
-          description: 'The RICO case is ready, but the organization\'s leader offers evidence of corruption within law enforcement.',
-          skillCheck: {
-            name: 'Deception',
-            dcCheck: 5
-          },
-          choices: {
-            cooperate: {
-              text: 'Execute the Raid',
-              description: 'Proceed with the planned operation',
-              outcomes: {
-                bothCooperate: {
-                  playerPoints: 3,
-                  dmPoints: 0
-                },
-                betrayed: {
-                  playerPoints: 0,
-                  dmPoints: 2
-                }
-              }
-            },
-            negotiate: {
-              text: 'Parallel Investigation',
-              description: 'Launch the raid while secretly documenting corruption',
-              outcomes: {
-                bothNegotiate: {
-                  playerPoints: 4,
-                  dmPoints: 1
-                },
-                betrayed: {
-                  playerPoints: 1,
-                  dmPoints: 2
-                },
-                successful: {
-                  playerPoints: 3,
-                  dmPoints: 1
-                }
-              }
-            },
-            betray: {
-              text: 'Investigate Corruption',
-              description: 'Delay the raid to expose potential internal corruption',
-              outcomes: {
-                successful: {
-                  playerPoints: 5,
-                  dmPoints: 2
-                },
-                bothBetray: {
-                  playerPoints: 1,
-                  dmPoints: 3
-                }
-              }
-            }
-          }
-        }
-      ]
-    }
-  ];
   
   const validateDatabaseConnection = () => {
     if (!database) {
@@ -994,86 +404,108 @@ export const useGame = () => {
     }
   }
 
+  const createNewGame = async (scenarioId) => {
+    loading.value = true
+    try {
+      if (!auth.currentUser) {
+        throw new Error('User must be authenticated')
+      }
 
-  // Create new game with enhanced structure
-// composables/useGame.js
+      // Get scenario info from SceneManager
+      const availableScenarios = sceneManager.getScenarios()
+      const scenarioInfo = availableScenarios.find(s => s.id === scenarioId)
+      
+      if (!scenarioInfo) {
+        throw new Error('Invalid scenario selected')
+      }
 
-// Create new game with dynamic scenes
-// composables/useGame.js
-const createNewGame = async (scenarioId) => {
-  loading.value = true
-  try {
-    validateDatabaseConnection()
+      // Get initial scene
+      const firstScene = sceneManager.getRandomFirstRoundScene(scenarioId)
+      
+      if (!firstScene) {
+        throw new Error('Failed to generate initial scene')
+      }
 
-    if (!auth.currentUser) {
-      throw new Error('User must be authenticated')
-    }
-
-    // Get initial scene
-    const firstScene = sceneManager.getRandomFirstRoundScene(scenarioId)
-    
-    const gameData = {
-      scenarioId,
-      createdAt: Date.now(),
-      status: 'active',
-      currentRound: 1,
-      userId: auth.currentUser.uid,
-      dmPoints: 0,
-      currentScene: firstScene,
-      lastChoices: null,
-      choiceHistory: [],
-      players: {
-        [auth.currentUser.uid]: {
-          type: 'human',
-          score: 0,
-          choices: {}
+      // Add base choices to scene
+      firstScene.choices = {
+        cooperate: {
+          text: 'Honor the Agreement',
+          description: 'Maintain trust and cooperation'
         },
-        ai: {
-          type: 'ai',
-          score: 0,
-          choices: {}
+        negotiate: {
+          text: 'Cautious Approach',
+          description: 'Seek middle ground while protecting interests'
+        },
+        betray: {
+          text: 'Seize Advantage',
+          description: 'Pursue personal gain at their expense'
         }
       }
-    }
 
-    // Create reference to games collection
-    const gamesRef = dbRef(database, 'games')
-    const newGameRef = push(gamesRef)
-    
-    if (!newGameRef.key) {
-      throw new Error('Failed to create game reference')
-    }
+      const gameData = {
+        scenarioId,
+        scenario: scenarioInfo,
+        createdAt: Date.now(),
+        status: 'active',
+        currentRound: 1,
+        userId: auth.currentUser.uid,
+        dmPoints: 0,
+        currentScene: firstScene,
+        lastChoices: null,
+        choiceHistory: [],
+        players: {
+          [auth.currentUser.uid]: {
+            type: 'human',
+            score: 0,
+            choices: {}
+          },
+          ai: {
+            type: 'ai',
+            score: 0,
+            choices: {}
+          }
+        },
+        consequences: {}
+      }
 
-    // Create direct reference to new game and set data
-    const newGamePath = `games/${newGameRef.key}`
-    const specificGameRef = dbRef(database, newGamePath)
-    await set(specificGameRef, gameData)
+      // Create game in database
+      const gamesRef = dbRef(database, 'games')
+      const newGameRef = push(gamesRef)
+      
+      if (!newGameRef.key) {
+        throw new Error('Failed to create game reference')
+      }
 
-    // Set up listener
-    setupGameListener(newGameRef.key)
-    
-    return {
-      id: newGameRef.key,
-      ...gameData
+      await set(dbRef(database, `games/${newGameRef.key}`), gameData)
+      
+      return {
+        id: newGameRef.key,
+        ...gameData
+      }
+    } catch (err) {
+      console.error('Error creating game:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
     }
-  } catch (err) {
-    console.error('Error creating game:', err)
-    error.value = err.message
-    throw err
-  } finally {
-    loading.value = false
   }
-}
 
-// Make choice with dynamic scene progression
+// Update the makeChoice function to use SceneManager
+// Inside useGame composable
+
 const makeChoice = async (gameId, choice, diceInfo) => {
-  loading.value = true
+  loading.value = true;
   try {
-    const gameRef = ref(database, `games/${gameId}`)
-    const gameData = currentGame.value
+    const gameRef = dbRef(database, `games/${gameId}`);
+    const gameData = currentGame.value;
+
+    if (!gameData) {
+      throw new Error('Game not found');
+    }
 
     // Generate AI's choice
-    const aiChoice = await generateAiChoice(gameData)
+    const aiChoice = await generateAiChoice(gameData);
 
     // Record choices for this round
     const roundChoices = {
@@ -1081,10 +513,10 @@ const makeChoice = async (gameId, choice, diceInfo) => {
       aiChoice,
       diceRoll: diceInfo,
       timestamp: Date.now()
-    }
+    };
 
     // Add to choice history
-    const updatedHistory = [...(gameData.choiceHistory || []), roundChoices]
+    const updatedHistory = [...(gameData.choiceHistory || []), roundChoices];
 
     // Calculate outcome
     const outcome = determineOutcome(
@@ -1092,36 +524,53 @@ const makeChoice = async (gameId, choice, diceInfo) => {
       aiChoice, 
       gameData.currentScene, 
       diceInfo
-    )
+    );
 
     // Calculate consequences
     const consequences = consequenceManager.generateConsequence(
       choice,
       diceInfo,
       outcome
-    )
+    );
 
-    // Determine next scene based on choices
-    const nextRound = gameData.currentRound + 1
-    let nextScene = null
+    // Determine next scene using SceneManager
+    const nextRound = gameData.currentRound + 1;
+    let nextScene = null;
     
     if (nextRound <= 5) {
+      // Get next scene
       nextScene = sceneManager.determineScene(
         gameData.scenarioId,
         nextRound,
         roundChoices,
         updatedHistory
-      )
+      );
 
       // Modify scene based on consequences
       nextScene = sceneManager.modifyScene(
         nextScene,
         consequences,
         updatedHistory
-      )
+      );
+
+      // Add base choices to the next scene
+      nextScene.choices = {
+        cooperate: {
+          text: 'Honor the Agreement',
+          description: 'Maintain trust and cooperation'
+        },
+        negotiate: {
+          text: 'Cautious Approach',
+          description: 'Seek middle ground while protecting interests'
+        },
+        betray: {
+          text: 'Seize Advantage',
+          description: 'Pursue personal gain at their expense'
+        }
+      };
     }
 
-    // Update game state
+    // Create updates object
     const updates = {
       [`players/${auth.currentUser.uid}/choices/${gameData.currentRound}`]: {
         choice,
@@ -1136,35 +585,54 @@ const makeChoice = async (gameId, choice, diceInfo) => {
       [`players/ai/score`]: (gameData.players.ai?.score || 0) + outcome.aiPoints,
       dmPoints: (gameData.dmPoints || 0) + outcome.dmPoints,
       lastChoices: roundChoices,
-      choiceHistory: updatedHistory,
-      consequences: consequences
+      choiceHistory: updatedHistory
+    };
+
+    // Update consequences - make sure we're not just overwriting with an empty object
+    if (consequences && consequences.length > 0) {
+      const timestamp = Date.now();
+      updates.consequences = {
+        ...(gameData.consequences || {}),
+        ...consequences.reduce((acc, consequence, index) => {
+          // Create a safe key using timestamp and index
+          const safeKey = `consequence_${timestamp}_${index}`;
+          acc[safeKey] = consequence;
+          return acc;
+        }, {})
+      };
     }
 
+    // Add next round info if game is continuing
     if (nextRound <= 5) {
-      updates.currentRound = nextRound
-      updates.currentScene = nextScene
+      updates.currentRound = nextRound;
+      updates.currentScene = nextScene;
     } else {
-      updates.status = 'completed'
-      updates.completedAt = Date.now()
+      updates.status = 'completed';
+      updates.completedAt = Date.now();
     }
 
-    await update(gameRef, updates)
+    // Update the game in Firebase
+    await update(gameRef, updates);
 
     return {
       outcome,
-      nextScene,
+      nextScene: nextRound <= 5 ? nextScene : null,
       playerChoice: choice,
       aiChoice
-    }
+    };
 
   } catch (err) {
-    error.value = err.message
-    throw err
+    console.error('Error making choice:', err);
+    error.value = err.message;
+    throw err;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
-  
+};
+
+// Rest of your useGame composable code...
+
+
   // Fetch game with enhanced error handling
   const fetchGame = async (gameId) => {
     if (!gameId) {
@@ -1589,8 +1057,5 @@ const ensureSafeValue = (value, fallback = '') => {
     fetchPlayerGames,
     makeChoice,
     cleanupGameListener,
-    
-    // Constants
-    scenarios
   }
 }

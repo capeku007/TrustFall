@@ -8,8 +8,23 @@ export const useSceneManager = () => {
     'shadow-syndicate': shadowSyndicate
   }
 
+  const baseChoices = {
+    cooperate: {
+      text: 'Honor the Agreement',
+      description: 'Maintain trust and cooperation'
+    },
+    negotiate: {
+      text: 'Cautious Approach',
+      description: 'Seek middle ground while protecting interests'
+    },
+    betray: {
+      text: 'Seize Advantage',
+      description: 'Pursue personal gain at their expense'
+    }
+  }
+
   // Get random scene from first round options
-  const getRandomFirstRoundScene = (scenarioId) => {
+ const getRandomFirstRoundScene = (scenarioId) => {
     const scenario = scenarios[scenarioId]
     if (!scenario?.firstRoundScenes?.length) {
       throw new Error('No first round scenes available')
@@ -18,28 +33,45 @@ export const useSceneManager = () => {
     const randomIndex = Math.floor(Math.random() * scenario.firstRoundScenes.length)
     return scenario.firstRoundScenes[randomIndex]
   }
-
-  // Determine next scene based on choices
-  const determineScene = (scenarioId, roundNumber, lastChoices, history) => {
+  
+const determineScene = (scenarioId, roundNumber, lastChoices, history) => {
     const scenario = scenarios[scenarioId]
     if (!scenario) {
       throw new Error('Invalid scenario')
     }
-
+  
     // First round gets random initial scene
     if (roundNumber === 1) {
       return getRandomFirstRoundScene(scenarioId)
     }
-
+  
     // Get scene based on last round's choices
     if (lastChoices?.playerChoice && lastChoices?.aiChoice) {
-      const sceneKey = `${lastChoices.playerChoice}_${lastChoices.aiChoice}`.toUpperCase()
-      return (
-        scenario.sceneMatrix[roundNumber]?.[sceneKey] ||
-        scenario.defaultScene
-      )
+      // Convert choice combination to scene matrix key
+      const playerChoice = lastChoices.playerChoice.toUpperCase()
+      const aiChoice = lastChoices.aiChoice.toUpperCase()
+      
+      // Generate key based on whether choices match
+      let sceneKey
+      if (playerChoice === aiChoice) {
+        sceneKey = `BOTH_${playerChoice}`
+      } else {
+        sceneKey = `PLAYER_${playerChoice}_AI_${aiChoice}`
+      }
+  
+      console.log('Looking for scene with key:', sceneKey, 'in round:', roundNumber)
+  
+      // Try to get the scene from the matrix
+      const nextScene = scenario.sceneMatrix[roundNumber]?.[sceneKey]
+  
+      if (!nextScene) {
+        console.log(`No scene found for key ${sceneKey} in round ${roundNumber}, using default`)
+        return scenario.defaultScene
+      }
+  
+      return nextScene
     }
-
+  
     return scenario.defaultScene
   }
 
@@ -48,6 +80,22 @@ export const useSceneManager = () => {
     if (!scene) return scene
 
     let modifiedScene = { ...scene }
+    
+    // Add base choices
+    modifiedScene.choices = {
+      cooperate: {
+        text: 'Honor the Agreement',
+        description: 'Maintain trust and cooperation'
+      },
+      negotiate: {
+        text: 'Cautious Approach',
+        description: 'Seek middle ground while protecting interests'
+      },
+      betray: {
+        text: 'Seize Advantage',
+        description: 'Pursue personal gain at their expense'
+      }
+    }
     
     // Apply consequence modifiers
     consequences.forEach(consequence => {

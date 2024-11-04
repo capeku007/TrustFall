@@ -2,6 +2,10 @@
   <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <div ref="bottomSheet" id="startModal" tabindex="-1" data-modal-target="startModal" data-modal-placement="bottom" aria-hidden="true" class="fixed bottom-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full">
       <StartGame/>
+    </div>    
+    
+    <div ref="bottomSheet" id="analysisModal" tabindex="-1" data-modal-target="analysisModal" data-modal-placement="bottom" aria-hidden="true" class="fixed bottom-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full">
+      <GameAnalysis :game-data="currentGame" />
     </div>
 
     <div class="max-w-3xl mx-auto">
@@ -57,51 +61,11 @@
 
         <!-- Round Analysis -->
         <div class="mb-8">
-          <h2 class="text-lg font-semibold text-gray-900 mb-4">Operation Timeline</h2>
-          <div class="space-y-4">
-            <div v-for="round in processedRounds" 
-                 :key="round.id" 
-                 class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <div class="flex items-center justify-between mb-2">
-                <h3 class="font-medium text-gray-900">
-                  Phase {{ round.id }}: {{ round.title }}
-                </h3>
-                <div class="flex items-center space-x-4">
-                  <!-- Choice Display -->
-                  <div class="flex items-center space-x-2">
-                    <div class="px-3 py-1 rounded-full text-sm font-medium"
-                         :class="getChoiceDisplayClass(round.playerChoice)">
-                      {{ getChoiceDisplayText(round.playerChoice) }}
-                    </div>
-                    <span class="text-gray-400">vs</span>
-                    <div class="px-3 py-1 rounded-full text-sm font-medium"
-                         :class="getChoiceDisplayClass(round.aiChoice)">
-                      {{ getChoiceDisplayText(round.aiChoice) }}
-                    </div>
-                  </div>
-                  
-                  <!-- Score & Dice -->
-                  <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium text-purple-600">
-                      +{{ round.playerPoints }}
-                    </span>
-                    <span v-if="round.diceRoll" 
-                          class="text-xs text-gray-400">
-                      (🎲{{ round.diceRoll }})
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <p class="text-sm text-gray-600">{{ getRoundAnalysis(round) }}</p>
-              
-              <!-- Critical Moments Badge -->
-              <div v-if="round.isCritical" 
-                   :class="getCriticalBadgeClass(round)"
-                   class="mt-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
-                {{ getCriticalBadgeText(round) }}
-              </div>
-            </div>
-          </div>
+          <h2 class="text-lg font-semibold text-gray-900 mb-4">View Analysis</h2>
+          <button @click="showModal('analysisModal')" 
+                  class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+            View Analysis
+          </button>
         </div>
 
         <!-- Action Buttons -->

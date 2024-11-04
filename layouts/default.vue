@@ -4,7 +4,7 @@
   
       <main>
         <div class="container">
-          <main class="body"><slot /></main>
+          <main class="body h-[90dvh]"><slot /></main>
           <div class=" ">
             <div
               class="fixed bottom-0 h-[10dvh] left-1/2 transform -translate-x-1/2 inline-flex mx-auto justify-between bg-white w-full"
@@ -126,10 +126,9 @@
   }
   
   .body {
-    height: 90dvh;
-    min-height: 90dvh;
+    /* height: 90dvh;
+    min-height: 90dvh; */
     overflow-y: hidden;
-    background-color: #f7f7f7;
   }
   
   ::-webkit-scrollbar {

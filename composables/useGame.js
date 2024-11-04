@@ -409,15 +409,6 @@ export const useGame = () => {
       throw err
     }
   }
-  
-  // Clean up function
-  const cleanupGameListener = () => {
-    if (gameListener) {
-      gameListener()
-      gameListener = null
-      currentGame.value = null
-    }
-  }
 
   const createNewGame = async (scenarioId) => {
     loading.value = true
@@ -760,8 +751,7 @@ const calculateDiceBonus = (diceInfo, dcCheck = 7) => {
   // Fetch game with enhanced error handling
   const fetchGame = async (gameId) => {
     if (!gameId) {
-      error.value = 'Game ID is required'
-      return null
+      throw new Error('Game ID is required')
     }
   
     loading.value = true
@@ -782,7 +772,12 @@ const calculateDiceBonus = (diceInfo, dcCheck = 7) => {
         ...snapshot.val()
       }
   
+      // Update current game value
+      currentGame.value = gameData
+      
+      // Set up listener for real-time updates
       setupGameListener(gameId)
+      
       return gameData
   
     } catch (err) {
@@ -791,6 +786,15 @@ const calculateDiceBonus = (diceInfo, dcCheck = 7) => {
       throw err
     } finally {
       loading.value = false
+    }
+  }
+  
+  // Make sure cleanup is handled properly
+  const cleanupGameListener = () => {
+    if (gameListener) {
+      gameListener()
+      gameListener = null
+      currentGame.value = null
     }
   }
 

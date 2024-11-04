@@ -6,6 +6,7 @@ import { query, orderByChild, equalTo } from 'firebase/database'
 import { useAIDialogue } from './useAIDialogue'
 import { useAdaptiveDifficulty } from './useAdaptiveDifficulty'
 import { useSceneManager } from './useSceneManager'
+import { useAIDiceRoll } from './useAIDiceRoll'
 const ConsequenceType = {
   LOYALTY: 'loyalty',
   BETRAYAL: 'betrayal',
@@ -153,7 +154,7 @@ const OutcomeType = {
   PARTIAL_BETRAYAL: 'partialBetrayal'
 }
 
-const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
+const determineOutcome = (playerChoice, aiChoice, roundData, playerDiceInfo, aiDiceInfo) => {
   // Base point values for different outcome combinations
   const pointMatrix = {
     [ChoiceType.COOPERATE]: {
@@ -176,50 +177,64 @@ const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
   // Get base outcome from matrix
   const baseOutcome = pointMatrix[playerChoice][aiChoice]
 
-  // Calculate dice influence (scaled down from original)
-  let pointMultiplier = 1
-  let additionalNarrative = ''
+  // Calculate player dice influence
+  let playerPointMultiplier = 1
+  let playerNarrative = ''
 
-  if (diceInfo.diceRoll === 20) {
-    // Critical success - 25% bonus instead of double
-    pointMultiplier = 1.25
-    additionalNarrative = ' Your exceptional skill provides an edge!'
-  } else if (diceInfo.diceRoll === 1) {
-    // Critical failure - 25% penalty instead of half
-    pointMultiplier = 0.75
-    additionalNarrative = ' Your mistake costs you some advantage.'
-  } else if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
-    // Success - 10% bonus instead of 50%
-    pointMultiplier = 1.1
-    additionalNarrative = ' Your competence improves the outcome slightly.'
+  if (playerDiceInfo.diceRoll === 12) {
+    playerPointMultiplier = 1.25
+    playerNarrative = ' Your exceptional skill provides an edge!'
+  } else if (playerDiceInfo.diceRoll === 2) {
+    playerPointMultiplier = 0.75
+    playerNarrative = ' Your mistake costs you some advantage.'
+  } else if (playerDiceInfo.finalResult >= (roundData.skillCheck?.dcCheck || 10)) {
+    playerPointMultiplier = 1.1
+    playerNarrative = ' Your competence improves the outcome slightly.'
   } else {
-    // Failure - 10% penalty instead of 25%
-    pointMultiplier = 0.9
-    additionalNarrative = ' Your struggle reduces the effectiveness of your choice.'
+    playerPointMultiplier = 0.9
+    playerNarrative = ' Your struggle reduces the effectiveness of your choice.'
+  }
+
+  // Calculate AI dice influence
+  let aiPointMultiplier = 1
+  let aiNarrative = ''
+
+  if (aiDiceInfo.diceRoll === 12) {
+    aiPointMultiplier = 1.25
+    aiNarrative = ' Your opponent shows remarkable skill!'
+  } else if (aiDiceInfo.diceRoll === 2) {
+    aiPointMultiplier = 0.75
+    aiNarrative = ' Your opponent makes a critical error!'
+  } else if (aiDiceInfo.finalResult >= (roundData.skillCheck?.dcCheck || 10)) {
+    aiPointMultiplier = 1.1
+    aiNarrative = ' Your opponent demonstrates competence.'
+  } else {
+    aiPointMultiplier = 0.9
+    aiNarrative = ' Your opponent struggles with their choice.'
   }
 
   // Apply negotiation bonuses
   if (playerChoice === ChoiceType.NEGOTIATE) {
-    // Successful negotiation roll provides intelligence
-    if (diceInfo.finalResult >= (roundData.dcCheck || 10)) {
-      additionalNarrative += ' Your careful negotiation reveals hints about their intentions.'
+    if (playerDiceInfo.finalResult >= (roundData.skillCheck?.dcCheck || 10)) {
+      playerNarrative += ' Your careful negotiation reveals hints about their intentions.'
     }
     
-    // Negotiation provides some protection against betrayal
     if (aiChoice === ChoiceType.BETRAY) {
-      pointMultiplier += 0.15 // Additional 15% protection
-      additionalNarrative += ' Your cautious approach minimizes losses.'
+      playerPointMultiplier += 0.15
+      playerNarrative += ' Your cautious approach minimizes losses.'
     }
   }
 
   // Calculate final points
   const finalOutcome = {
     type: baseOutcome.type,
-    playerPoints: Math.floor(baseOutcome.player * pointMultiplier),
-    aiPoints: baseOutcome.ai,
+    playerPoints: Math.floor(baseOutcome.player * playerPointMultiplier),
+    aiPoints: Math.floor(baseOutcome.ai * aiPointMultiplier),
     dmPoints: baseOutcome.dm,
-    narrative: generateOutcomeNarrative(baseOutcome.type, playerChoice, aiChoice) + additionalNarrative,
-    intelligence: getIntelligenceGain(playerChoice, aiChoice, diceInfo)
+    narrative: generateOutcomeNarrative(baseOutcome.type, playerChoice, aiChoice) + playerNarrative + aiNarrative,
+    intelligence: getIntelligenceGain(playerChoice, aiChoice, playerDiceInfo),
+    playerDiceBonus: Math.floor(baseOutcome.player * playerPointMultiplier) - baseOutcome.player,
+    aiDiceBonus: Math.floor(baseOutcome.ai * aiPointMultiplier) - baseOutcome.ai
   }
 
   return finalOutcome
@@ -491,146 +506,255 @@ export const useGame = () => {
     }
   }
 
-// Update the makeChoice function to use SceneManager
-// Inside useGame composable
-
-const makeChoice = async (gameId, choice, diceInfo) => {
-  loading.value = true;
-  try {
-    const gameRef = dbRef(database, `games/${gameId}`);
-    const gameData = currentGame.value;
-
-    if (!gameData) {
-      throw new Error('Game not found');
-    }
-
-    // Generate AI's choice
-    const aiChoice = await generateAiChoice(gameData);
-
-    // Record choices for this round
-    const roundChoices = {
-      playerChoice: choice,
-      aiChoice,
-      diceRoll: diceInfo,
-      timestamp: Date.now()
-    };
-
-    // Add to choice history
-    const updatedHistory = [...(gameData.choiceHistory || []), roundChoices];
-
-    // Calculate outcome
-    const outcome = determineOutcome(
-      choice, 
-      aiChoice, 
-      gameData.currentScene, 
-      diceInfo
-    );
-
-    // Calculate consequences
-    const consequences = consequenceManager.generateConsequence(
-      choice,
-      diceInfo,
-      outcome
-    );
-
-    // Determine next scene using SceneManager
-    const nextRound = gameData.currentRound + 1;
-    let nextScene = null;
-    
-    if (nextRound <= 5) {
-      // Get next scene
-      nextScene = sceneManager.determineScene(
-        gameData.scenarioId,
-        nextRound,
-        roundChoices,
-        updatedHistory
-      );
-
-      // Modify scene based on consequences
-      nextScene = sceneManager.modifyScene(
-        nextScene,
-        consequences,
-        updatedHistory
-      );
-
-      // Add base choices to the next scene
-      nextScene.choices = {
-        cooperate: {
-          text: 'Honor the Agreement',
-          description: 'Maintain trust and cooperation'
-        },
-        negotiate: {
-          text: 'Cautious Approach',
-          description: 'Seek middle ground while protecting interests'
-        },
-        betray: {
-          text: 'Seize Advantage',
-          description: 'Pursue personal gain at their expense'
+  const makeChoice = async (gameId, choice, diceInfo) => {
+    loading.value = true;
+    try {
+      const gameRef = dbRef(database, `games/${gameId}`);
+      const gameData = currentGame.value;
+  
+      if (!gameData) {
+        throw new Error('Game not found');
+      }
+  
+      // Create AI dice roll using the same dice roll composable
+      const { 
+        diceResult: aiDiceResult,
+        diceResults: aiDiceResults,
+        finalResult: aiFinalResult,
+        currentModifier: aiCurrentModifier,
+        rollDice: aiRollDice
+      } = useDiceRoll();
+      
+      // Calculate AI's dice modifiers based on consequences
+      let aiModifier = 0;
+      if (gameData.consequences) {
+        Object.values(gameData.consequences).forEach(consequence => {
+          switch (consequence.type) {
+            case 'LOYALTY':
+              aiModifier += 2;
+              break;
+            case 'BETRAYAL':
+              aiModifier -= 1;
+              break;
+            case 'CRITICAL_SUCCESS':
+              aiModifier += 1;
+              break;
+            case 'CRITICAL_FAILURE':
+              aiModifier -= 2;
+              break;
+          }
+        });
+      }
+      
+      // Perform AI dice roll
+      aiCurrentModifier.value = aiModifier;
+      await aiRollDice();
+      
+      // Create AI dice info object
+      const aiDiceInfo = {
+        diceRoll: aiDiceResult.value,
+        diceResults: aiDiceResults.value,
+        finalResult: aiFinalResult.value,
+        modifier: aiModifier,
+        isCritical: aiDiceResult.value === 12,
+        isCriticalFail: aiDiceResult.value === 2,
+        dcCheck: gameData.currentScene.skillCheck?.dcCheck || 10
+      };
+  
+      // Generate AI's choice
+      const aiChoice = await generateAiChoice(gameData);
+  
+      // Record choices and dice rolls for this round
+      const roundChoices = {
+        playerChoice: choice,
+        aiChoice: aiChoice,
+        details: {
+          player: {
+            type: choice,
+            diceRoll: diceInfo,
+            timestamp: Date.now()
+          },
+          ai: {
+            type: aiChoice,
+            diceRoll: aiDiceInfo,
+            timestamp: Date.now()
+          }
         }
       };
-    }
-
-    // Create updates object
-    const updates = {
-      [`players/${auth.currentUser.uid}/choices/${gameData.currentRound}`]: {
+  
+      // Add to choice history
+      const updatedHistory = [...(gameData.choiceHistory || []), roundChoices];
+  
+      // Calculate outcome with both dice rolls
+      const outcome = determineOutcome(
+        choice, 
+        aiChoice, 
+        gameData.currentScene, 
+        diceInfo,
+        aiDiceInfo
+      );
+  
+      // Calculate consequences
+      const newConsequences = consequenceManager.generateConsequence(
         choice,
-        diceRoll: diceInfo,
-        outcome: outcome
-      },
-      [`players/${auth.currentUser.uid}/score`]: (gameData.players[auth.currentUser.uid]?.score || 0) + outcome.playerPoints,
-      [`players/ai/choices/${gameData.currentRound}`]: {
-        choice: aiChoice,
-        outcome: outcome
-      },
-      [`players/ai/score`]: (gameData.players.ai?.score || 0) + outcome.aiPoints,
-      dmPoints: (gameData.dmPoints || 0) + outcome.dmPoints,
-      lastChoices: roundChoices,
-      choiceHistory: updatedHistory
-    };
-
-    // Update consequences - make sure we're not just overwriting with an empty object
-    if (consequences && consequences.length > 0) {
-      const timestamp = Date.now();
-      updates.consequences = {
-        ...(gameData.consequences || {}),
-        ...consequences.reduce((acc, consequence, index) => {
-          // Create a safe key using timestamp and index
-          const safeKey = `consequence_${timestamp}_${index}`;
-          acc[safeKey] = consequence;
-          return acc;
-        }, {})
+        diceInfo,
+        outcome
+      );
+  
+      // Determine next scene
+      const nextRound = gameData.currentRound + 1;
+      let nextScene = null;
+      
+      if (nextRound <= 5) {
+        // Get next scene
+        nextScene = sceneManager.determineScene(
+          gameData.scenarioId,
+          nextRound,
+          roundChoices,
+          updatedHistory
+        );
+  
+        // Modify scene based on consequences
+        nextScene = sceneManager.modifyScene(
+          nextScene,
+          [...Object.values(gameData.consequences || {}), ...newConsequences],
+          updatedHistory
+        );
+  
+        // Add base choices to next scene
+        nextScene.choices = {
+          cooperate: {
+            text: 'Honor the Agreement',
+            description: 'Maintain trust and cooperation'
+          },
+          negotiate: {
+            text: 'Cautious Approach',
+            description: 'Seek middle ground while protecting interests'
+          },
+          betray: {
+            text: 'Seize Advantage',
+            description: 'Pursue personal gain at their expense'
+          }
+        };
+      }
+  
+      // Prepare game updates
+      const updates = {
+        [`players/${auth.currentUser.uid}/choices/${gameData.currentRound}`]: {
+          type: choice,
+          diceRoll: diceInfo,
+          outcome: {
+            points: outcome.playerPoints,
+            bonus: outcome.playerDiceBonus,
+            total: outcome.playerPoints + outcome.playerDiceBonus
+          }
+        },
+        [`players/${auth.currentUser.uid}/score`]: 
+          (gameData.players[auth.currentUser.uid]?.score || 0) + 
+          outcome.playerPoints + 
+          outcome.playerDiceBonus,
+        
+        [`players/ai/choices/${gameData.currentRound}`]: {
+          type: aiChoice,
+          diceRoll: aiDiceInfo,
+          outcome: {
+            points: outcome.aiPoints,
+            bonus: outcome.aiDiceBonus,
+            total: outcome.aiPoints + outcome.aiDiceBonus
+          }
+        },
+        [`players/ai/score`]: 
+          (gameData.players.ai?.score || 0) + 
+          outcome.aiPoints + 
+          outcome.aiDiceBonus,
+        
+        dmPoints: (gameData.dmPoints || 0) + outcome.dmPoints,
+        lastChoices: roundChoices,
+        choiceHistory: updatedHistory
       };
+  
+      // Update consequences
+      if (newConsequences.length > 0) {
+        const timestamp = Date.now();
+        const updatedConsequences = {
+          ...(gameData.consequences || {})
+        };
+  
+        // Remove expired consequences
+        Object.entries(updatedConsequences).forEach(([key, consequence]) => {
+          if (consequence.duration && consequence.createdAt) {
+            const age = gameData.currentRound - consequence.createdAt;
+            if (age >= consequence.duration) {
+              delete updatedConsequences[key];
+            }
+          }
+        });
+  
+        // Add new consequences
+        newConsequences.forEach((consequence, index) => {
+          const key = `consequence_${timestamp}_${index}`;
+          updatedConsequences[key] = {
+            ...consequence,
+            createdAt: gameData.currentRound
+          };
+        });
+  
+        updates.consequences = updatedConsequences;
+      }
+  
+      // Add next round info if game is continuing
+      if (nextRound <= 5) {
+        updates.currentRound = nextRound;
+        updates.currentScene = nextScene;
+      } else {
+        updates.status = 'completed';
+        updates.completedAt = Date.now();
+      }
+  
+      // Update the game in Firebase
+      await update(gameRef, updates);
+  
+      // Return the complete result
+      return {
+        outcome: {
+          ...outcome,
+          type: outcome.type,
+          playerPoints: outcome.playerPoints + outcome.playerDiceBonus,
+          aiPoints: outcome.aiPoints + outcome.aiDiceBonus,
+          dmPoints: outcome.dmPoints,
+          narrative: outcome.narrative
+        },
+        nextScene: nextRound <= 5 ? nextScene : null,
+        playerChoice: {
+          type: choice,
+          diceRoll: diceInfo
+        },
+        aiChoice: {
+          type: aiChoice,
+          diceRoll: aiDiceInfo
+        },
+        consequences: newConsequences
+      };
+  
+    } catch (err) {
+      console.error('Error making choice:', err);
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
     }
+  };
 
-    // Add next round info if game is continuing
-    if (nextRound <= 5) {
-      updates.currentRound = nextRound;
-      updates.currentScene = nextScene;
-    } else {
-      updates.status = 'completed';
-      updates.completedAt = Date.now();
-    }
 
-    // Update the game in Firebase
-    await update(gameRef, updates);
-
-    return {
-      outcome,
-      nextScene: nextRound <= 5 ? nextScene : null,
-      playerChoice: choice,
-      aiChoice
-    };
-
-  } catch (err) {
-    console.error('Error making choice:', err);
-    error.value = err.message;
-    throw err;
-  } finally {
-    loading.value = false;
-  }
+// Helper function to calculate dice bonus
+const calculateDiceBonus = (diceInfo, dcCheck = 7) => {
+  if (!diceInfo.diceRoll) return 0;
+  
+  if (diceInfo.diceRoll === 12) return 1;
+  if (diceInfo.diceRoll === 2) return -1;
+  if (diceInfo.finalResult >= dcCheck) return 0.5;
+  return 0;
 };
-
-// Rest of your useGame composable code...
 
 
   // Fetch game with enhanced error handling
@@ -880,146 +1004,6 @@ const makeChoice = async (gameId, choice, diceInfo) => {
       default:
         return ChoiceType.NEGOTIATE
     }
-  }
-
-  const determineOutcome = (playerChoice, aiChoice, roundData, diceInfo) => {
-    // Point matrix for all possible combinations
-    const pointMatrix = {
-      [ChoiceType.COOPERATE]: {
-        [ChoiceType.COOPERATE]: { 
-          outcome: 'bothCooperate',
-          playerPoints: 3, 
-          aiPoints: 3,
-          dmPoints: 0,
-          narrative: "Trust prevails as both parties honor their commitments."
-        },
-        [ChoiceType.NEGOTIATE]: { 
-          outcome: 'cooperateNegotiate',
-          playerPoints: 2, 
-          aiPoints: 3, 
-          dmPoints: 1,
-          narrative: "While you maintain full trust, they seek middle ground."
-        },
-        [ChoiceType.BETRAY]: { 
-          outcome: 'betrayed',
-          playerPoints: 0, 
-          aiPoints: 5,
-          dmPoints: 2,
-          narrative: "Your trust is betrayed completely."
-        }
-      },
-      [ChoiceType.NEGOTIATE]: {
-        [ChoiceType.COOPERATE]: { 
-          outcome: 'cooperateNegotiate',
-          playerPoints: 3, 
-          aiPoints: 2, 
-          dmPoints: 1,
-          narrative: "Your cautious approach meets their full cooperation."
-        },
-        [ChoiceType.NEGOTIATE]: { 
-          outcome: 'bothNegotiate',
-          playerPoints: 4, 
-          aiPoints: 4, 
-          dmPoints: 1,
-          narrative: "A careful dance of compromise leads to mutual benefit."
-        },
-        [ChoiceType.BETRAY]: { 
-          outcome: 'negotiateBetray',
-          playerPoints: 1, 
-          aiPoints: 4, 
-          dmPoints: 2,
-          narrative: "Your cautious approach minimizes the impact of their betrayal."
-        }
-      },
-      [ChoiceType.BETRAY]: {
-        [ChoiceType.COOPERATE]: { 
-          outcome: 'successfulBetray',
-          playerPoints: 5, 
-          aiPoints: 0, 
-          dmPoints: 2,
-          narrative: "Your betrayal catches them completely off guard."
-        },
-        [ChoiceType.NEGOTIATE]: { 
-          outcome: 'partialBetrayal',
-          playerPoints: 4, 
-          aiPoints: 1, 
-          dmPoints: 2,
-          narrative: "Your betrayal succeeds, though their caution lessens the impact."
-        },
-        [ChoiceType.BETRAY]: { 
-          outcome: 'bothBetray',
-          playerPoints: 1, 
-          aiPoints: 1, 
-          dmPoints: 3,
-          narrative: "Mutual betrayal leaves both parties weakened."
-        }
-      }
-    }
-  
-    // Get base outcome from matrix
-    const baseOutcome = pointMatrix[playerChoice][aiChoice]
-    if (!baseOutcome) {
-      console.error('Invalid choice combination:', { playerChoice, aiChoice });
-      throw new Error('Invalid choice combination');
-    }
-  
-    // Calculate dice bonus points
-    let diceBonus = 0;
-    let diceNarrative = '';
-    const dcCheck = roundData.skillCheck?.dcCheck || 7;
-  
-    // Critical success (rolling 12)
-    if (diceInfo.diceRoll === 12) {
-      diceBonus = 1;
-      diceNarrative = ' Your exceptional skill adds to your success! (+1)';
-    }
-    // Critical failure (rolling 2)
-    else if (diceInfo.diceRoll === 2) {
-      diceBonus = -1;
-      diceNarrative = ' Your mistake costs you dearly. (-1)';
-    }
-    // Normal success (meeting or exceeding DC)
-    else if (diceInfo.finalResult >= dcCheck) {
-      diceBonus = 0.5;
-      diceNarrative = ' Your competence provides a small advantage. (+0.5)';
-    }
-    // Normal failure (below DC)
-    else {
-      diceBonus = 0;
-      diceNarrative = ' Your struggle yields no additional benefit.';
-    }
-  
-    // Add negotiation bonuses
-    if (playerChoice === ChoiceType.NEGOTIATE) {
-      // Successful negotiation provides intelligence
-      if (diceInfo.finalResult >= dcCheck) {
-        diceNarrative += ' Your careful negotiation reveals hints about their intentions.';
-      }
-      
-      // Negotiation provides some protection against betrayal
-      if (aiChoice === ChoiceType.BETRAY) {
-        diceBonus += 0.5;
-        diceNarrative += ' Your cautious approach earns you an extra advantage. (+0.5)';
-      }
-    }
-  
-    // Calculate final points (rounded to nearest whole number)
-    const finalPlayerPoints = Math.round(baseOutcome.playerPoints + diceBonus);
-  
-    // Calculate final outcome
-    const finalOutcome = {
-      type: baseOutcome.outcome,
-      playerPoints: Math.max(0, finalPlayerPoints), // Ensure points don't go negative
-      aiPoints: baseOutcome.aiPoints,  // AI points stay constant
-      dmPoints: baseOutcome.dmPoints,
-      narrative: baseOutcome.narrative + diceNarrative,
-      playerChoice,
-      aiChoice,
-      diceRoll: diceInfo,
-      diceBonus: diceBonus
-    }
-  
-    return finalOutcome;
   }
 
 

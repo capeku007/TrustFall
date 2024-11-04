@@ -15,6 +15,7 @@
       </div>
     </div>
 
+    
     <!-- Game Content -->
     <template v-else-if="currentGame">
       <!-- Game Header with DM Score -->
@@ -23,7 +24,7 @@
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold text-gray-900">
-                {{ currentGame.scenario?.title || "Loading..." }}
+                {{ currentGame.currentScene?.title || "Loading..." }}
               </h1>
               <p class="mt-1 text-sm text-gray-500">
                 Round {{ currentGame.currentRound }} of 5
@@ -48,16 +49,15 @@
 
       <!-- Main Game Area -->
       <div class="max-w-3xl mx-auto space-y-6">
-        <!-- DM Narration -->
-        <div v-if="currentRound && !showingResults" 
+        <!-- Scene Description and DM Narration -->
+        <div v-if="currentGame.currentScene && !showingResults" 
              class="bg-purple-50 rounded-lg shadow-sm p-6 border-2 border-purple-200">
-             <h2 class="text-xl font-semibold text-gray-900">
-            {{ currentRound.title }}
+          <h2 class="text-xl font-semibold text-gray-900">
+            {{ currentGame.currentScene.title }}
           </h2>
-          <p class="m-2 text-gray-600">{{ currentRound.description }}</p>
+          <p class="m-2 text-gray-600">{{ currentGame.currentScene.description }}</p>
 
-          
-             <div class="flex items-center mb-4">
+          <div class="flex items-center mb-4">
             <div class="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
               <span class="text-2xl">🎭</span>
             </div>
@@ -65,95 +65,88 @@
           </div>
           
           <div class="space-y-3">
-            
-  <p v-for="(line, index) in currentNarration" 
-     :key="index"
-     class="text-purple-800 italic"
-     :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5}s`}">
-    "{{ line }}"
-  </p>
-</div>
-        </div>
+            <p v-for="(line, index) in currentNarration" 
+               :key="index"
+               class="text-purple-800 italic"
+               :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5}s`}">
+              "{{ line }}"
+            </p>
+          </div>
         </div>
 
-        <!-- Round Information -->
-        <div v-if="currentRound && !showingResults" class="bg-white rounded-lg shadow-sm p-6">
-
-          <!-- Consequences Display -->
+        <!-- Game Interaction Area -->
+        <div v-if="currentGame.currentScene && !showingResults" class="bg-white rounded-lg shadow-sm p-6">
+          <!-- Active Consequences -->
           <div v-if="currentGame.consequences && Object.keys(currentGame.consequences).length > 0"
-               class="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h3 class="font-semibold text-gray-700 mb-2">Active Consequences:</h3>
+               class="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-semibold text-gray-700 mb-2">Active Effects:</h3>
             <ul class="space-y-2">
-              <li v-for="(consequence, round) in currentGame.consequences" 
-                  :key="round"
+              <li v-for="(consequence, index) in currentGame.consequences" 
+                  :key="index"
                   class="text-sm text-gray-600 flex items-center">
                 <span class="w-2 h-2 bg-purple-400 rounded-full mr-2"></span>
-                {{ consequence }}
+                {{ consequence.description }}
               </li>
             </ul>
           </div>
 
-          <!-- Add this section just before your Choice Buttons in the template -->
-<!-- Add this section just before your Choice Buttons in the template -->
-<div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
-     class="mb-6 bg-white rounded-lg shadow-sm p-6">
-  <!-- Skill Check Info -->
-<!-- Skill Check Info -->
-<div class="flex items-center justify-between mb-4">
-  <div>
-    <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
-    <p class="text-sm text-gray-600">
-      DC {{ currentRound.skillCheck?.dcCheck }} 
-      {{ currentRound.skillCheck?.name || 'Deception' }} Check
-    </p>
-    <p class="text-xs text-gray-500 mt-1">
-      (2d6 + modifier, success on meet or exceed)
-    </p>
-  </div>
-  <div class="text-right">
-    <p class="text-sm text-gray-600">
-      Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
-    </p>
-  </div>
-</div>
-
-
-  <!-- Dice Rolling Interface -->
-  <div v-if="!diceResult && !isRolling" class="text-center">
-    <button @click="performDiceRoll"
-            class="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-      <span class="mr-2">🎲</span>
-      Roll for {{ currentRound.skillCheck?.name || 'Deception' }}
-    </button>
-  </div>
-
-  <!-- Rolling Animation/Result -->
-  <div v-else class="text-center p-4">
-  <div v-if="isRolling" class="text-2xl font-bold text-purple-600 animate-bounce">
-    Rolling...
-  </div>
-  <div v-else class="space-y-2">
-    <p class="text-2xl font-bold" :class="getRollClass(currentRound.skillCheck?.dcCheck)">
-      {{ diceResults[0] }} + {{ diceResults[1] }}
-      <span class="text-sm font-normal" v-if="diceModifiers !== 0">
-        ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
-      </span>
-      = {{ finalDiceResult }}
-    </p>
-    <p class="text-sm" :class="getRollClass(currentRound.skillCheck?.dcCheck)">
-      {{ getRollDescription(currentRound.skillCheck?.dcCheck) }}
-    </p>
-  </div>
-</div>
-</div>
-          <!-- Choice Buttons -->
+          <!-- Skill Check Section -->
           <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
+               class="mb-6 bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
+                <p class="text-sm text-gray-600">
+                  DC {{ currentGame.currentScene.skillCheck?.dcCheck }} 
+                  {{ currentGame.currentScene.skillCheck?.name }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">
+                  (2d6 + modifier, success on meet or exceed)
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-gray-600">
+                  Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Dice Rolling Interface -->
+            <div v-if="!diceResult && !isRolling" class="text-center">
+              <button @click="performDiceRoll"
+                      class="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                <span class="mr-2">🎲</span>
+                Roll for {{ currentGame.currentScene.skillCheck?.name }}
+              </button>
+            </div>
+
+            <!-- Dice Result Display -->
+            <div v-else class="text-center p-4">
+              <div v-if="isRolling" class="text-2xl font-bold text-purple-600 animate-bounce">
+                Rolling...
+              </div>
+              <div v-else class="space-y-2">
+                <p class="text-2xl font-bold" :class="getRollClass(currentGame.currentScene.skillCheck?.dcCheck)">
+                  {{ diceResults[0] }} + {{ diceResults[1] }}
+                  <span class="text-sm font-normal" v-if="diceModifiers !== 0">
+                    ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
+                  </span>
+                  = {{ finalDiceResult }}
+                </p>
+                <p class="text-sm" :class="getRollClass(currentGame.currentScene.skillCheck?.dcCheck)">
+                  {{ getRollDescription(currentGame.currentScene.skillCheck?.dcCheck) }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+<!-- Choice Buttons -->
+<div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed && diceResult && currentGame.currentScene?.choices" 
      class="mt-8 grid grid-cols-3 gap-4">
-  <button v-for="(choice, key) in currentRound.choices"
+  <button v-for="(choice, key) in currentGame.currentScene.choices"
           :key="key"
           @click="makePlayerChoice(key)"
           :disabled="playerChoice !== null"
-          class="flex flex-col items-center p-6 border-2 rounded-lg transition-colors"
           :class="getChoiceButtonClasses(key)">
     <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3"
          :class="getChoiceIconClasses(key)">
@@ -177,31 +170,21 @@
   </button>
 </div>
 
-          <!-- Replace the existing point modifier display with this -->
-<div v-if="roundOutcome?.pointMultiplier && roundOutcome.pointMultiplier !== 1" 
-     class="mt-4 p-2 bg-purple-50 rounded">
-  <p class="text-sm text-purple-600">
-    Point Modifier: {{ 
-      (roundOutcome.pointMultiplier > 1 ? '+' : '') + 
-      Math.round((roundOutcome.pointMultiplier - 1) * 100) 
-    }}%
-  </p>
-</div>
-
-<!-- Round Outcome Display -->
-<div v-if="roundOutcome && roundOutcome.narrative" 
-     class="mt-6 p-4 bg-gray-50 rounded-lg">
-  <h3 class="font-semibold text-gray-900 mb-2">Round Outcome:</h3>
-  <p class="text-gray-700 italic mb-2">{{ roundOutcome.narrative }}</p>
-  <div class="flex justify-between text-sm">
-    <span class="text-purple-600">
-      Points Earned: {{ roundOutcome.playerPoints || 0 }}
-    </span>
-    <span class="text-gray-600">
-      DM Points: +{{ roundOutcome.dmPoints || 0 }}
-    </span>
-  </div>
-</div>
+          <!-- Round Outcome -->
+          <div v-if="roundOutcome?.narrative" 
+               class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-semibold text-gray-900 mb-2">Outcome:</h3>
+            <p class="text-gray-700 italic mb-2">{{ roundOutcome.narrative }}</p>
+            <div class="flex justify-between text-sm">
+              <span class="text-purple-600">
+                Points Earned: {{ roundOutcome.playerPoints || 0 }}
+              </span>
+              <span class="text-gray-600">
+                DM Points: +{{ roundOutcome.dmPoints || 0 }}
+              </span>
+            </div>
+          </div>
+        </div>
 
         <!-- Game End Screen -->
         <div v-if="isGameOver" class="mt-8 text-center bg-white rounded-lg shadow-sm p-6">
@@ -270,16 +253,28 @@ const roundOutcome = ref({
   narrative: "",
 });
 
-const getDiceResultClass = computed(() => {
-  if (!finalDiceResult.value) return ''
-  return getRollClass(currentRound.value?.dcCheck || 7)
+const currentScene = computed(() => currentGame.value?.currentScene || null)
+
+
+const hasRoundBeenPlayed = computed(() => {
+  if (!currentGame.value || !authStore.user) return false
+  
+  const currentRoundChoices = currentGame.value.players[authStore.user.uid]?.choices || {}
+  return !!currentRoundChoices[currentGame.value.currentRound]
 })
 
-const getDiceResultMessage = computed(() => {
-  if (!finalDiceResult.value) return ''
-  return getRollDescription(currentRound.value?.dcCheck || 7)
+const isGameOver = computed(() => {
+  if (!currentGame.value) return false
+  return currentGame.value.status === 'completed'
 })
 
+const currentNarration = computed(() => {
+  if (!currentGame.value?.currentScene?.narration) return [
+    "The story continues...",
+    "What will you choose?"
+  ]
+  return currentGame.value.currentScene.narration
+})
 const performDiceRoll = async () => {
   try {
     await rollDice()
@@ -291,26 +286,13 @@ const performDiceRoll = async () => {
 
 // Computed
 const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
-const currentNarration = computed(() => {
-  if (!currentGame.value) return []
-  return currentGame.value.narration?.[currentGame.value.currentRound] || [
-    "The story continues...",
-    "What will you choose?"
-  ]
-})
+
 const playerScore = computed(() => {
   if (!currentGame.value?.players?.[authStore.user?.uid]?.score) return 0;
   return currentGame.value.players[authStore.user.uid].score;
 });
 
-const hasRoundBeenPlayed = computed(() => {
-  if (!currentGame.value || !authStore.user) return false;
-  
-  const currentRoundNumber = currentGame.value.currentRound;
-  const hasPlayed = !!currentGame.value.players[authStore.user.uid]?.choices?.[currentRoundNumber];
-  
-  return currentRoundNumber === 5 && hasPlayed ? true : hasPlayed;
-});
+
 
 const currentRound = computed(() => {
   if (!currentGame.value?.scenario?.rounds) return null;
@@ -319,35 +301,9 @@ const currentRound = computed(() => {
   );
 });
 
-const isGameOver = computed(() => {
-  if (!currentGame.value) return false;
-  const currentRoundNumber = currentGame.value.currentRound;
-  const hasPlayedFinalRound = !!currentGame.value.players[authStore.user.uid]?.choices?.[5];
-  
-  return currentRoundNumber === 5 && hasPlayedFinalRound;
-});
 
 // Methods
-const getChoiceButtonClasses = (key) => {
-  return {
-    'border-purple-500 bg-purple-50': playerChoice.value === key && key === 'cooperate',
-    'border-red-500 bg-red-50': playerChoice.value === key && key === 'betray',
-    'border-gray-200 hover:border-purple-500 hover:bg-purple-50': playerChoice.value !== key,
-  };
-};
 
-const diceModifiers = computed(() => {
-  if (!currentGame.value?.consequences) return 0
-  
-  let modifier = 0
-  // Add modifiers based on past consequences
-  Object.values(currentGame.value.consequences).forEach(consequence => {
-    if (consequence.includes('loyalty')) modifier += 2
-    if (consequence.includes('betray')) modifier -= 1
-  })
-  
-  return modifier
-})
 
 
 
@@ -394,75 +350,6 @@ const getChoiceIcon = (key) => {
 
 
 // Modify your existing makePlayerChoice method
-const makePlayerChoice = async (choice) => {
-  if (playerChoice.value || !currentGame.value || hasRoundBeenPlayed.value) return;
-  if (!diceResult.value && !isRolling.value) return; // Require dice roll before choice
-  
-  const currentRoundNumber = currentGame.value.currentRound;
-  if (currentRoundNumber > 5) return;
-  
-  playerChoice.value = choice;
-  
-  try {
-    const gameRef = props.gameId;
-    const isFinalRound = currentRoundNumber === 5;
-
-    // Create diceInfo object
-    const diceInfo = {
-      diceRoll: diceResult.value,
-      finalResult: finalDiceResult.value,
-      modifier: diceModifiers.value,
-      isCritical: diceResult.value === 20,
-      isCriticalFail: diceResult.value === 1,
-      dcCheck: currentRound.value?.dcCheck || 10
-    };
-
-    // Clear previous outcome before making new choice
-    roundOutcome.value = null;
-
-    const result = await makeChoice(
-      gameRef, 
-      currentRoundNumber, 
-      choice, 
-      diceInfo
-    );
-    
-    // Ensure we have a valid result before updating roundOutcome
-    if (result?.outcome) {
-      roundOutcome.value = {
-        ...result.outcome,
-        pointMultiplier: result.outcome.pointMultiplier || 1,
-        playerPoints: result.outcome.playerPoints || 0,
-        dmPoints: result.outcome.dmPoints || 0,
-        narrative: result.outcome.narrative || "The round concludes...",
-      };
-    }
-    
-    // Show outcome for a few seconds
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    if (isFinalRound) {
-      showingResults.value = true;
-      await new Promise(resolve => setTimeout(resolve, 4000));
-      if (isComponentMounted.value) {
-        emit('game-complete');
-      }
-    } else {
-      playerChoice.value = null;
-      aiChoice.value = null;
-      roundOutcome.value = null;
-      resetRoll(); // Reset dice for next round
-    }
-  } catch (err) {
-    console.error('Error making choice:', err);
-    error.value = err.message;
-    // Reset state on error
-    playerChoice.value = null;
-    roundOutcome.value = null;
-  }
-};
-
-
 
 const getWinnerMessage = () => {
   const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0;
@@ -537,6 +424,124 @@ onMounted(async () => {
     }
   }
 });
+
+const getDiceResultClass = computed(() => {
+  if (!finalDiceResult.value) return ''
+  return getRollClass(currentGame.value?.currentScene?.skillCheck?.dcCheck || 7)
+})
+
+const getDiceResultMessage = computed(() => {
+  if (!finalDiceResult.value) return ''
+  return getRollDescription(currentGame.value?.currentScene?.skillCheck?.dcCheck || 7)
+})
+
+// Update dice modifiers computation
+const diceModifiers = computed(() => {
+  if (!currentGame.value?.consequences) return 0
+  
+  let modifier = 0
+  // Add modifiers based on past consequences
+  Object.entries(currentGame.value.consequences).forEach(([_, consequence]) => {
+    if (consequence.type === 'LOYALTY') modifier += 2
+    if (consequence.type === 'BETRAYAL') modifier -= 1
+    if (consequence.type === 'CRITICAL_SUCCESS') modifier += 1
+    if (consequence.type === 'CRITICAL_FAILURE') modifier -= 2
+  })
+  
+  return modifier
+})
+
+// Update the choice button class handling
+const getChoiceButtonClasses = (key) => {
+  const baseClasses = 'flex flex-col items-center p-6 border-2 rounded-lg transition-colors'
+  const activeClasses = {
+    cooperate: 'border-green-500 bg-green-50',
+    negotiate: 'border-purple-500 bg-purple-50',
+    betray: 'border-red-500 bg-red-50'
+  }
+  const inactiveClasses = {
+    cooperate: 'hover:border-green-500 hover:bg-green-50',
+    negotiate: 'hover:border-purple-500 hover:bg-purple-50',
+    betray: 'hover:border-red-500 hover:bg-red-50'
+  }
+
+  if (playerChoice.value === key) {
+    return `${baseClasses} ${activeClasses[key]}`
+  }
+  
+  return `${baseClasses} border-gray-200 ${inactiveClasses[key]}`
+}
+
+// Updated makePlayerChoice method
+const makePlayerChoice = async (choice) => {
+  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return
+  if (!diceResult.value && !isRolling.value) return
+  
+  playerChoice.value = choice
+  
+  try {
+    const diceInfo = {
+      diceRoll: diceResult.value,
+      finalResult: finalDiceResult.value,
+      modifier: diceModifiers.value,
+      isCritical: diceResult.value === 12, // Using 2d6, so max is 12
+      isCriticalFail: diceResult.value === 2, // Min is 2 with 2d6
+      dcCheck: currentGame.value.currentScene.skillCheck?.dcCheck || 10
+    }
+
+    roundOutcome.value = null
+
+    const result = await makeChoice(
+      props.gameId,
+      choice,
+      diceInfo
+    )
+
+    if (result?.outcome) {
+      roundOutcome.value = {
+        ...result.outcome,
+        pointMultiplier: result.outcome.pointMultiplier || 1,
+        playerPoints: result.outcome.playerPoints || 0,
+        dmPoints: result.outcome.dmPoints || 0,
+        narrative: result.outcome.narrative || "The round concludes..."
+      }
+    }
+
+    // Show outcome for a few seconds
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    
+    if (result.nextScene) {
+      playerChoice.value = null
+      aiChoice.value = null
+      roundOutcome.value = null
+      resetRoll()
+    } else {
+      showingResults.value = true
+      if (isComponentMounted.value) {
+        emit('game-complete')
+      }
+    }
+  } catch (err) {
+    console.error('Error making choice:', err)
+    error.value = err.message
+    playerChoice.value = null
+    roundOutcome.value = null
+  }
+}
+
+// Update watching for round changes
+watch(
+  () => currentGame.value?.currentScene,
+  (newScene) => {
+    if (newScene) {
+      // Reset state for new scene
+      playerChoice.value = null
+      aiChoice.value = null
+      roundOutcome.value = null
+      resetRoll()
+    }
+  }
+)
 </script>
 
 <style scoped>

@@ -135,26 +135,26 @@
                   Select Scenario
                 </label>
                 <div class="grid grid-cols-1 gap-4">
-                  <div v-for="scenario in scenarios" :key="scenario.id"
-                    class="relative flex items-center space-x-3 rounded-lg border p-3 hover:border-gray-400 cursor-pointer"
-                    :class="selectedScenario === scenario.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
-                    @click="selectScenario(scenario.id)">
-                    <div class="flex-shrink-0">
-                      <img :src="scenario.image" :alt="scenario.title" class="h-10 w-10 rounded-full">
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <div class="text-sm font-medium text-gray-900">{{ scenario.title }}</div>
-                      <p class="text-sm text-gray-500">{{ scenario.description }}</p>
-                    </div>
-                    <div v-if="selectedScenario === scenario.id" class="text-purple-500">
-                      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
+  <div v-for="scenario in availableScenarios" :key="scenario.id"
+    class="relative flex items-center space-x-3 rounded-lg border p-3 hover:border-gray-400 cursor-pointer"
+    :class="selectedScenario === scenario.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
+    @click="selectScenario(scenario.id)">
+    <div class="flex-shrink-0">
+      <img :src="scenario.image" :alt="scenario.title" class="h-10 w-10 rounded-full">
+    </div>
+    <div class="min-w-0 flex-1">
+      <div class="text-sm font-medium text-gray-900">{{ scenario.title }}</div>
+      <p class="text-sm text-gray-500">{{ scenario.description }}</p>
+    </div>
+    <div v-if="selectedScenario === scenario.id" class="text-purple-500">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd" />
+      </svg>
+    </div>
+  </div>
+</div>
               </div>
 
               <!-- Opponent Type Selection -->
@@ -299,6 +299,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from "../stores/authStore";
 import { useMainStore } from "~/stores/main";
 import { useGame } from '~/composables/useGame';
+import { useSceneManager } from '~/composables/useSceneManager';
 
 // Initialize composables and stores
 const router = useRouter();
@@ -306,7 +307,9 @@ const authStore = useAuthStore();
 const mainStore = useMainStore();
 const { hideModal } = useModal();
 const { scenarios, createNewGame, playerGames, loadingGames, fetchPlayerGames, cleanupGameListener } = useGame();
+const sceneManager = useSceneManager();
 
+const availableScenarios = computed(() => sceneManager.getScenarios())
 // State
 const loading = ref(false);
 const error = ref(null);
@@ -404,6 +407,7 @@ const selectOpponent = (opponentType) => {
   error.value = null;
 };
 
+// Add to startGame in your GameMenu component
 const startGame = async () => {
   if (!canStart.value) return;
   
@@ -411,23 +415,23 @@ const startGame = async () => {
   error.value = null;
 
   try {
+    console.log('Starting game creation...');
+    console.log('Selected scenario:', selectedScenario.value);
+    console.log('Auth status:', !!authStore.user);
+
     if (!authStore.user) {
       throw new Error('Please sign in to start a game');
     }
 
-    const game = await createNewGame(selectedScenario.value, selectedOpponent.value);
+    const game = await createNewGame(selectedScenario.value);
+    console.log('Game created:', game);
     
     if (!game || !game.id) {
       throw new Error('Failed to create game');
     }
 
-    // Ensure proper cleanup
     cleanupGameListener();
-
-    // Hide modal before navigation
     hideModal('startModal');
-
-    // Navigate to the new game
     await router.push(`/game/${game.id}`);
 
   } catch (err) {
@@ -437,6 +441,7 @@ const startGame = async () => {
     loading.value = false;
   }
 };
+
 
 // Bottom sheet methods
 const handleTouchStart = (event) => {

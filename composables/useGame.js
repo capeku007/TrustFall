@@ -5,6 +5,7 @@ import { ref as dbRef, push, set, get, child, onValue, update } from 'firebase/d
 import { query, orderByChild, equalTo } from 'firebase/database'
 import { useAIDialogue } from './useAIDialogue'
 import { useAdaptiveDifficulty } from './useAdaptiveDifficulty'
+import { useSceneManager } from './useSceneManager'
 const ConsequenceType = {
   LOYALTY: 'loyalty',
   BETRAYAL: 'betrayal',
@@ -13,6 +14,9 @@ const ConsequenceType = {
   CRITICAL_SUCCESS: 'critical_success',
   CRITICAL_FAILURE: 'critical_failure'
 }
+
+
+const sceneManager = useSceneManager()
 
 const consequenceManager = {
   calculateModifiers(activeConsequences) {
@@ -336,6 +340,8 @@ const playerGames = ref([])
 const loadingGames = ref(false)
 const roundOutcome = ref(null)
 let gameListener = null
+
+
 
 export const useGame = () => {
   const { database, auth } = useFirebase()
@@ -931,36 +937,41 @@ export const useGame = () => {
     }
   ];
   
-  // Validate database connection
   const validateDatabaseConnection = () => {
     if (!database) {
       throw new Error('Database connection not established')
     }
-    return true
-  }
-
-  // Clean up game listener
-  const cleanupGameListener = () => {
-    if (gameListener) {
-      gameListener()
-      gameListener = null
-      currentGame.value = null
-      roundOutcome.value = null
+    
+    try {
+      const testRef = dbRef(database, '.info/connected')
+      return true
+    } catch (err) {
+      console.error('Database connection error:', err)
+      throw new Error('Unable to connect to database')
     }
   }
-
-  // Set up game listener with error handling
+  
+  // Helper function to ensure safe database paths
+  const createSafeDatabaseRef = (path) => {
+    try {
+      return dbRef(database, path)
+    } catch (err) {
+      console.error('Error creating database reference:', err)
+      throw new Error('Invalid database path')
+    }
+  }
+  
+  // Update the setupGameListener function
   const setupGameListener = (gameId) => {
     cleanupGameListener()
   
     try {
-      const gameRef = dbRef(database, `games/${gameId}`)
+      const gameRef = createSafeDatabaseRef(`games/${gameId}`)
       gameListener = onValue(gameRef, (snapshot) => {
         if (snapshot.exists()) {
-          const data = snapshot.val()
           currentGame.value = {
             id: gameId,
-            ...data
+            ...snapshot.val()
           }
         } else {
           console.error('Game not found in listener')
@@ -970,82 +981,189 @@ export const useGame = () => {
       })
     } catch (err) {
       console.error('Error setting up game listener:', err)
+      throw err
+    }
+  }
+  
+  // Clean up function
+  const cleanupGameListener = () => {
+    if (gameListener) {
+      gameListener()
+      gameListener = null
+      currentGame.value = null
     }
   }
 
+
   // Create new game with enhanced structure
-  const createNewGame = async (scenarioId) => {
-    loading.value = true;
-    error.value = null;
-  
-    try {
-      validateDatabaseConnection();
-  
-      if (!auth.currentUser) {
-        throw new Error('User must be authenticated');
-      }
-      
-      const scenario = scenarios.find(s => s.id === scenarioId);
-      if (!scenario) {
-        throw new Error('Invalid scenario');
-      }
-  
-      // Generate initial narration based on scenario
-      const narrativeGenerator = useNarrativeGenerator()
-      const initialNarration = await narrativeGenerator.generateDMNarration({
-        roundNumber: 1,
-        scenarioId: scenarioId,
-        previousChoices: {},
-        lastRoundChoice: null,
-        playerHistory: {},
-        aiHistory: {}
-      })
-  
-      const gameData = {
-        scenarioId,
-        createdAt: Date.now(),
-        status: 'active',
-        currentRound: 1,
-        userId: auth.currentUser.uid,
-        dmPoints: 0,
-        consequences: {},
-        narration: {
-          1: initialNarration // Store initial narration
-        },
-        players: {
-          [auth.currentUser.uid]: {
-            type: 'human',
-            score: 0,
-            choices: {}
-          },
-          ai: {
-            type: 'ai',
-            score: 0,
-            choices: {}
-          }
-        },
-        scenario: scenario
-      };
-  
-      const gamesRef = dbRef(database, 'games');
-      const newGameRef = push(gamesRef);
-      
-      await set(newGameRef, gameData);
-      setupGameListener(newGameRef.key);
-  
-      return {
-        id: newGameRef.key,
-        ...gameData
-      };
-  
-    } catch (err) {
-      error.value = err.message;
-      console.error('Error creating game:', err);
-      throw err;
-    } finally {
-      loading.value = false;
+// composables/useGame.js
+
+// Create new game with dynamic scenes
+// composables/useGame.js
+const createNewGame = async (scenarioId) => {
+  loading.value = true
+  try {
+    validateDatabaseConnection()
+
+    if (!auth.currentUser) {
+      throw new Error('User must be authenticated')
     }
-  };
+
+    // Get initial scene
+    const firstScene = sceneManager.getRandomFirstRoundScene(scenarioId)
+    
+    const gameData = {
+      scenarioId,
+      createdAt: Date.now(),
+      status: 'active',
+      currentRound: 1,
+      userId: auth.currentUser.uid,
+      dmPoints: 0,
+      currentScene: firstScene,
+      lastChoices: null,
+      choiceHistory: [],
+      players: {
+        [auth.currentUser.uid]: {
+          type: 'human',
+          score: 0,
+          choices: {}
+        },
+        ai: {
+          type: 'ai',
+          score: 0,
+          choices: {}
+        }
+      }
+    }
+
+    // Create reference to games collection
+    const gamesRef = dbRef(database, 'games')
+    const newGameRef = push(gamesRef)
+    
+    if (!newGameRef.key) {
+      throw new Error('Failed to create game reference')
+    }
+
+    // Create direct reference to new game and set data
+    const newGamePath = `games/${newGameRef.key}`
+    const specificGameRef = dbRef(database, newGamePath)
+    await set(specificGameRef, gameData)
+
+    // Set up listener
+    setupGameListener(newGameRef.key)
+    
+    return {
+      id: newGameRef.key,
+      ...gameData
+    }
+  } catch (err) {
+    console.error('Error creating game:', err)
+    error.value = err.message
+    throw err
+  } finally {
+    loading.value = false
+  }
+}
+
+// Make choice with dynamic scene progression
+const makeChoice = async (gameId, choice, diceInfo) => {
+  loading.value = true
+  try {
+    const gameRef = ref(database, `games/${gameId}`)
+    const gameData = currentGame.value
+
+    // Generate AI's choice
+    const aiChoice = await generateAiChoice(gameData)
+
+    // Record choices for this round
+    const roundChoices = {
+      playerChoice: choice,
+      aiChoice,
+      diceRoll: diceInfo,
+      timestamp: Date.now()
+    }
+
+    // Add to choice history
+    const updatedHistory = [...(gameData.choiceHistory || []), roundChoices]
+
+    // Calculate outcome
+    const outcome = determineOutcome(
+      choice, 
+      aiChoice, 
+      gameData.currentScene, 
+      diceInfo
+    )
+
+    // Calculate consequences
+    const consequences = consequenceManager.generateConsequence(
+      choice,
+      diceInfo,
+      outcome
+    )
+
+    // Determine next scene based on choices
+    const nextRound = gameData.currentRound + 1
+    let nextScene = null
+    
+    if (nextRound <= 5) {
+      nextScene = sceneManager.determineScene(
+        gameData.scenarioId,
+        nextRound,
+        roundChoices,
+        updatedHistory
+      )
+
+      // Modify scene based on consequences
+      nextScene = sceneManager.modifyScene(
+        nextScene,
+        consequences,
+        updatedHistory
+      )
+    }
+
+    // Update game state
+    const updates = {
+      [`players/${auth.currentUser.uid}/choices/${gameData.currentRound}`]: {
+        choice,
+        diceRoll: diceInfo,
+        outcome: outcome
+      },
+      [`players/${auth.currentUser.uid}/score`]: (gameData.players[auth.currentUser.uid]?.score || 0) + outcome.playerPoints,
+      [`players/ai/choices/${gameData.currentRound}`]: {
+        choice: aiChoice,
+        outcome: outcome
+      },
+      [`players/ai/score`]: (gameData.players.ai?.score || 0) + outcome.aiPoints,
+      dmPoints: (gameData.dmPoints || 0) + outcome.dmPoints,
+      lastChoices: roundChoices,
+      choiceHistory: updatedHistory,
+      consequences: consequences
+    }
+
+    if (nextRound <= 5) {
+      updates.currentRound = nextRound
+      updates.currentScene = nextScene
+    } else {
+      updates.status = 'completed'
+      updates.completedAt = Date.now()
+    }
+
+    await update(gameRef, updates)
+
+    return {
+      outcome,
+      nextScene,
+      playerChoice: choice,
+      aiChoice
+    }
+
+  } catch (err) {
+    error.value = err.message
+    throw err
+  } finally {
+    loading.value = false
+  }
+}
   
   // Fetch game with enhanced error handling
   const fetchGame = async (gameId) => {
@@ -1436,239 +1554,7 @@ export const useGame = () => {
     return finalOutcome;
   }
 
-  const makeChoice = async (gameId, roundId, choice, diceInfo) => {
-    loading.value = true;
-    error.value = null;
-    roundOutcome.value = null;
-  
-    try {
-      validateDatabaseConnection();
-  
-      if (!auth.currentUser) {
-        throw new Error('User must be authenticated');
-      }
-  
-      const gameRef = dbRef(database, `games/${gameId}`);
-      const snapshot = await get(gameRef);
-  
-      if (!snapshot.exists()) {
-        throw new Error('Game not found');
-      }
-  
-      const gameData = snapshot.val();
-  
-      if (gameData.currentRound !== roundId) {
-        throw new Error('Invalid round');
-      }
-  
-      // Get current round data
-      const currentRound = gameData.scenario.rounds.find(r => r.id === roundId);
-      if (!currentRound) {
-        throw new Error('Round not found');
-      }
-  
-      // Generate AI's choice
-      const aiChoice = await generateAiChoice(gameData, roundId);
-  
-      // Calculate base outcome
-      const baseOutcome = determineOutcome(
-        choice,
-        aiChoice,
-        currentRound,
-        diceInfo
-      );
-  
-      // Calculate base difficulty
-      const calculatedDC = currentRound.skillCheck?.dcCheck || 7;
-  
-      // Apply difficulty-based modifiers to player points
-      let pointMultiplier = 1.0;
-      const isCriticalSuccess = diceInfo.diceRoll === 12;
-      const isCriticalFailure = diceInfo.diceRoll === 2;
-  
-      if (isCriticalSuccess) {
-        pointMultiplier = 1.25;
-      } else if (isCriticalFailure) {
-        pointMultiplier = 0.75;
-      } else if (diceInfo.finalResult >= calculatedDC) {
-        pointMultiplier = 1.1;
-      } else {
-        pointMultiplier = 0.9;
-      }
-  
-      // Calculate final points
-      const calculateRoundScore = (basePoints, multiplier) => {
-        return Math.floor(basePoints * multiplier);
-      };
-  
-      const calculateRunningScore = (choices) => {
-        if (!choices) return 0;
-        return Object.entries(choices).reduce((total, [_, data]) => {
-          return total + (data.pointsEarned || 0);
-        }, 0);
-      };
-  
-      const finalPlayerPoints = calculateRoundScore(baseOutcome.playerPoints, pointMultiplier);
-      const finalAiPoints = baseOutcome.aiPoints; // AI points are not modified by dice
-      const finalDmPoints = baseOutcome.dmPoints;
-  
-      // Prepare the round's data
-      const roundData = {
-        choice: choice,
-        diceRoll: diceInfo.diceRoll,
-        finalResult: diceInfo.finalResult,
-        difficulty: calculatedDC,
-        timestamp: Date.now(),
-        pointsEarned: finalPlayerPoints,
-        success: diceInfo.finalResult >= calculatedDC
-      };
-  
-      // Prepare updates object
-      const updates = {
-        [`players/${auth.currentUser.uid}/choices/${roundId}`]: roundData,
-        [`players/${auth.currentUser.uid}/score`]: calculateRunningScore(gameData.players[auth.currentUser.uid]?.choices) + finalPlayerPoints,
-        [`players/ai/choices/${roundId}`]: {
-          choice: aiChoice,
-          timestamp: Date.now(),
-          pointsEarned: finalAiPoints
-        },
-        [`players/ai/score`]: calculateRunningScore(gameData.players.ai?.choices) + finalAiPoints,
-        dmPoints: (gameData.dmPoints || 0) + finalDmPoints,
-        currentRoundStatus: 'completed'
-      };
-  
-      // Handle consequences
-      const newConsequences = consequenceManager.generateConsequence(
-        choice,
-        {
-          ...diceInfo,
-          dcCheck: calculatedDC
-        },
-        {
-          ...baseOutcome,
-          difficulty: calculatedDC,
-          pointMultiplier
-        }
-      );
-  
-      if (newConsequences && newConsequences.length > 0) {
-        updates.consequences = {
-          ...gameData.consequences,
-          [roundId]: newConsequences.map(c => ({
-            type: c.type || 'neutral',
-            description: c.description || 'The round ends.',
-            duration: c.duration || 1,
-            modifier: c.modifier || 0
-          }))
-        };
-      }
-  
-      // Handle round completion
-      if (roundId >= 5) {
-        // Create difficulty progression for all rounds including current
-        const createDifficultyProgression = (choices, currentRound) => {
-          const progression = [];
-          
-          // Add previous rounds
-          if (choices) {
-            Object.entries(choices).forEach(([round, data]) => {
-              if (data.difficulty !== undefined && data.success !== undefined) {
-                progression.push({
-                  round: parseInt(round),
-                  difficulty: data.difficulty,
-                  success: data.success
-                });
-              }
-            });
-          }
-          
-          // Add current round
-          progression.push({
-            round: roundId,
-            difficulty: calculatedDC,
-            success: diceInfo.finalResult >= calculatedDC
-          });
-          
-          return progression.sort((a, b) => a.round - b.round);
-        };
-  
-        updates.currentRound = 6;
-        updates.status = 'completed';
-        updates.completedAt = Date.now();
-        updates.finalOutcome = {
-          playerScore: updates[`players/${auth.currentUser.uid}/score`],
-          aiScore: updates[`players/ai/score`],
-          dmScore: updates.dmPoints,
-          finalConsequences: newConsequences || [],
-          difficultyProgression: createDifficultyProgression(
-            gameData.players[auth.currentUser.uid]?.choices,
-            roundData
-          )
-        };
-      } else {
-        // Generate narration for next round
-        const narrativeGenerator = useNarrativeGenerator();
-        try {
-          const nextRoundNarration = await narrativeGenerator.generateDMNarration({
-            roundNumber: roundId + 1,
-            scenarioId: gameData.scenarioId,
-            previousChoices: {
-              ...gameData.players[auth.currentUser.uid]?.choices,
-              [roundId]: { choice, difficulty: calculatedDC }
-            },
-            lastRoundChoice: {
-              playerChoice: choice,
-              aiChoice,
-              difficulty: calculatedDC,
-              outcome: baseOutcome
-            }
-          });
-  
-          if (Array.isArray(nextRoundNarration) && nextRoundNarration.length > 0) {
-            updates[`narration/${roundId + 1}`] = nextRoundNarration;
-          }
-        } catch (err) {
-          console.error('Narration generation error:', err);
-          updates[`narration/${roundId + 1}`] = [
-            "The stakes continue to rise...",
-            "Your choices echo through the shadows..."
-          ];
-        }
-        updates.currentRound = roundId + 1;
-      }
-  
-      // Store round outcome for UI
-      roundOutcome.value = {
-        narrative: baseOutcome.narrative || "The round concludes...",
-        playerPoints: finalPlayerPoints,
-        aiPoints: finalAiPoints,
-        dmPoints: finalDmPoints,
-        pointMultiplier,
-        playerChoice: choice,
-        aiChoice,
-        difficulty: {
-          dc: calculatedDC,
-          success: diceInfo.finalResult >= calculatedDC
-        },
-        consequences: newConsequences || []
-      };
-  
-      // Batch update all changes
-      await update(gameRef, updates);
-  
-      return {
-        outcome: roundOutcome.value,
-        gameState: currentGame.value
-      };
-  
-    } catch (err) {
-      error.value = err.message;
-      console.error('Error making choice:', err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  };
+
 
 // Helper function to ensure safe values for Firebase
 const ensureSafeValue = (value, fallback = '') => {

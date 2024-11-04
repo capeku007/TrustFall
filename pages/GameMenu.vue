@@ -177,10 +177,7 @@
 
                 <!-- Personality description -->
                 <p class="text-xs text-gray-500 sm:line-clamp-3 line-clamp-2">
-                  Lorem ipsum dolor, sit amet consectetur adipisicing elit. Iste
-                  cumque totam autem quia amet consequatur doloremque dolor,
-                  minima voluptates consequuntur commodi, sunt nihil quidem,
-                  veritatis aliquid temporibus ea sed blanditiis?
+                  Never attempt to win by force, what can be won by deception. ~ Niccolo Machiaveli.
                 </p>
               </div>
             </div>

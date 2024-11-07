@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen overflow-auto bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
     <!-- Loading State -->
     <div v-if="isLoading" class="flex items-center justify-center min-h-screen">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -251,6 +251,10 @@ const roundOutcome = ref({
   playerPoints: 0,
   dmPoints: 0,
   narrative: "",
+});
+
+definePageMeta({
+  layout: "ingame",
 });
 
 const currentScene = computed(() => currentGame.value?.currentScene || null)

@@ -16,7 +16,7 @@
       </div>
     </div>
   
-    <GameSummary v-else :gameId="route.params.id" />
+    <GameSummary v-else :gameId="route.params.id" class="h-[100dvh] overflow-hidden"/>
   </template>
   
   <script setup>

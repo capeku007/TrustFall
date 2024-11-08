@@ -169,7 +169,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { useFirebase, useFirebaseInstance } from "@/composables/useFirebase";
+import { useFirebase } from "@/composables/useFirebase";
 import { useAuthStore } from "@/stores/authStore";
 import {
   ref as dbRef,
@@ -189,7 +189,6 @@ import { getStorage } from "firebase/storage";
 const router = useRouter();
 const { database } = useFirebase();
 const authStore = useAuthStore();
-const {  storage } = useFirebaseInstance();
 
 // State
 const isEditing = ref(false);
@@ -259,32 +258,10 @@ const handleImageUpload = async (event) => {
   if (!file || !authStore.user?.uid) return;
 
   try {
-    // Add loading state
-    isLoading.value = true;
-
-    // Validate file type and size
-    if (!file.type.startsWith('image/')) {
-      throw new Error('Please select an image file');
-    }
-
-    // 5MB limit
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('Image size should be less than 5MB');
-    }
-
     const storage = getStorage();
-    
-    // Add timestamp to prevent caching issues
-    const fileName = `${authStore.user.uid}_${Date.now()}`;
-    const imageRef = storageRef(storage, `profiles/${fileName}`);
+    const imageRef = storageRef(storage, `profiles/${authStore.user.uid}`);
 
-    // Upload with metadata
-    const metadata = {
-      contentType: file.type,
-      cacheControl: 'public,max-age=300',
-    };
-
-    await uploadBytes(imageRef, file, metadata);
+    await uploadBytes(imageRef, file);
     const url = await getDownloadURL(imageRef);
 
     const userRef = dbRef(database, `users/${authStore.user.uid}`);
@@ -297,19 +274,8 @@ const handleImageUpload = async (event) => {
       ...authStore.user,
       photoURL: url
     });
-
   } catch (error) {
     console.error("Error uploading image:", error);
-    // Show error to user
-    if (error.code === 'storage/unauthorized') {
-      alert('Error: Unauthorized. Please log in again.');
-    } else if (error.code === 'storage/canceled') {
-      alert('Error: Upload canceled. Please try again.');
-    } else {
-      alert(`Error uploading image: ${error.message}`);
-    }
-  } finally {
-    isLoading.value = false;
   }
 };
 

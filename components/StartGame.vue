@@ -126,14 +126,10 @@
     </div>
   </template>
 </div>
-
-            <!-- New Game Form -->
-            <div v-else-if="currentTab === 'new'" class="space-y-6">
-              <!-- Scenario Selection -->
-              <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Select Scenario
-                </label>
+<!-- Multiplayer Tab Content -->
+<div v-else-if="currentTab === 'multiplayer'" class="space-y-4">
+              <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-900">Multiplayer Games</h2>
                 <div class="grid grid-cols-1 gap-4">
   <div v-for="scenario in availableScenarios" :key="scenario.id"
     class="relative flex items-center space-x-3 rounded-lg border p-3 hover:border-gray-400 cursor-pointer"
@@ -155,41 +151,186 @@
     </div>
   </div>
 </div>
+                <button
+                  @click="handleCreateMultiplayerGame"
+                  class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md"
+                >
+                  <span>Create Game</span>
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
               </div>
 
-              <!-- Opponent Type Selection -->
-              <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Select Opponent
-                </label>
-                <div class="grid grid-cols-2 gap-4">
-                  <button
-                    @click="selectOpponent('ai')"
-                    class="flex flex-col items-center p-4 rounded-lg border"
-                    :class="selectedOpponent === 'ai' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
+              <!-- Available Games Section -->
+              <div class="bg-white rounded-lg shadow-sm divide-y divide-gray-200">
+                <div class="p-4">
+                  <h3 class="text-sm font-medium text-gray-900">Available Games</h3>
+                </div>
+                
+                <!-- Loading State -->
+                <div v-if="loadingMultiplayer" class="p-8 flex justify-center">
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+
+                <!-- No Games State -->
+                <div v-else-if="pendingGames.length === 0" class="p-8 text-center">
+                  <p class="text-sm text-gray-500">No games available to join</p>
+                </div>
+
+                <!-- Games List -->
+                <div v-else class="divide-y divide-gray-200">
+                  <div 
+                    v-for="game in pendingGames" 
+                    :key="game.id" 
+                    class="p-4 hover:bg-gray-50"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" :class="selectedOpponent === 'ai' ? 'text-purple-500' : 'text-gray-400'"
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <span class="text-sm font-medium" :class="selectedOpponent === 'ai' ? 'text-purple-500' : 'text-gray-900'">AI Opponent</span>
-                  </button>
-                  <button
-                    @click="selectOpponent('player')"
-                    class="flex flex-col items-center p-4 rounded-lg border"
-                    :class="selectedOpponent === 'player' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" :class="selectedOpponent === 'player' ? 'text-purple-500' : 'text-gray-400'"
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    <span class="text-sm font-medium" :class="selectedOpponent === 'player' ? 'text-purple-500' : 'text-gray-900'">Real Player</span>
-                  </button>
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <h4 class="text-sm font-medium text-gray-900">
+                          {{ game.scenario.title }}
+                        </h4>
+                        <div class="mt-1 flex items-center space-x-2">
+                          <span class="text-xs text-gray-500">
+                            Host: {{ game.hostName }}
+                          </span>
+                          <span class="text-gray-300">•</span>
+                          <span class="text-xs text-gray-500">
+                            Players: {{ game.playerCount }}/{{ game.maxPlayers }}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        @click="handleJoinGame(game.id)"
+                        class="px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
+                        :disabled="game.playerCount >= game.maxPlayers"
+                      >
+                        Join Game
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              <!-- Error Message -->
+              <div 
+                v-if="multiplayerError" 
+                class="mt-4 px-4 py-3 rounded-md bg-red-50 text-red-600 text-sm"
+              >
+                {{ multiplayerError }}
+              </div>
+            </div>
+
+            <!-- New Game Form -->
+            <div v-else-if="currentTab === 'new'" class="space-y-6">
+              <div class="grid grid-cols-1 gap-4">
+  <div v-for="scenario in availableScenarios" :key="scenario.id"
+    class="relative flex items-center space-x-3 rounded-lg border p-3 hover:border-gray-400 cursor-pointer"
+    :class="selectedScenario === scenario.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
+    @click="selectScenario(scenario.id)">
+    <div class="flex-shrink-0">
+      <img :src="scenario.image" :alt="scenario.title" class="h-10 w-10 rounded-full">
+    </div>
+    <div class="min-w-0 flex-1">
+      <div class="text-sm font-medium text-gray-900">{{ scenario.title }}</div>
+      <p class="text-sm text-gray-500">{{ scenario.description }}</p>
+    </div>
+    <div v-if="selectedScenario === scenario.id" class="text-purple-500">
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd" />
+      </svg>
+    </div>
+  </div>
+</div>
+              <div class="mb-6">
+    <label class="block text-sm font-medium text-gray-700 mb-2">
+      Select Opponent
+    </label>
+    <div class="grid grid-cols-2 gap-4">
+      <button
+        @click="selectOpponent('ai')"
+        class="flex flex-col items-center p-4 rounded-lg border"
+        :class="selectedOpponent === 'ai' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" :class="selectedOpponent === 'ai' ? 'text-purple-500' : 'text-gray-400'"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <span class="text-sm font-medium" :class="selectedOpponent === 'ai' ? 'text-purple-500' : 'text-gray-900'">AI Opponent</span>
+      </button>
+      <button
+        @click="selectOpponent('player')"
+        class="flex flex-col items-center p-4 rounded-lg border"
+        :class="selectedOpponent === 'player' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2" :class="selectedOpponent === 'player' ? 'text-purple-500' : 'text-gray-400'"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <span class="text-sm font-medium" :class="selectedOpponent === 'player' ? 'text-purple-500' : 'text-gray-900'">Real Player</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Add Player Selection when Real Player is chosen -->
+  <div v-if="selectedOpponent === 'player'" class="mb-6">
+    <label class="block text-sm font-medium text-gray-700 mb-2">
+      Select Player
+    </label>
+    <div class="bg-white rounded-lg shadow-sm divide-y divide-gray-200">
+      <!-- Loading State -->
+      <div v-if="loadingPlayers" class="p-8 flex justify-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+
+      <!-- No Players State -->
+      <div v-else-if="availablePlayers.length === 0" class="p-8 text-center">
+        <p class="text-sm text-gray-500">No players available</p>
+      </div>
+
+      <!-- Players List -->
+      <div v-else class="max-h-60 overflow-y-auto divide-y divide-gray-200">
+        <div 
+          v-for="player in availablePlayers" 
+          :key="player.id"
+          @click="selectPlayerOpponent(player)"
+          class="p-4 hover:bg-gray-50 cursor-pointer"
+          :class="selectedPlayerOpponent?.id === player.id ? 'bg-purple-50' : ''"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div class="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <span class="text-lg text-purple-600">
+                    {{ player.name?.charAt(0)?.toUpperCase() || '?' }}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-900">
+                  {{ player.name || 'Anonymous' }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  Last online: {{ formatDate(player.lastSeen) }}
+                </p>
+              </div>
+            </div>
+            <div v-if="selectedPlayerOpponent?.id === player.id" class="text-purple-500">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clip-rule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
               <!-- Start Button -->
               <div class="mt-auto space-y-4">
                 <!-- Error message -->
@@ -300,6 +441,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useMainStore } from "~/stores/main";
 import { useGame } from '~/composables/useGame';
 import { useSceneManager } from '~/composables/useSceneManager';
+import { useMultiplayer } from '~/composables/useMultiplayer';
 
 // Initialize composables and stores
 const router = useRouter();
@@ -308,6 +450,16 @@ const mainStore = useMainStore();
 const { hideModal } = useModal();
 const { scenarios, createNewGame, playerGames, loadingGames, fetchPlayerGames, cleanupGameListener } = useGame();
 const sceneManager = useSceneManager();
+const { 
+  pendingGames, 
+  createMultiplayerGame, 
+  joinGame, 
+  getAvailablePlayers,
+  watchPendingGames,
+  loadingMultiplayer,
+  error: multiplayerError,
+  cleanup 
+} = useMultiplayer();
 
 const availableScenarios = computed(() => sceneManager.getScenarios())
 // State
@@ -315,7 +467,10 @@ const loading = ref(false);
 const error = ref(null);
 const selectedScenario = ref(null);
 const selectedOpponent = ref(null);
-const currentTab = ref('active');
+const currentTab = ref('new');
+const loadingPlayers = ref(false);
+const availablePlayers = ref([]);
+const selectedPlayerOpponent = ref(null);
 
 // Bottom sheet refs
 const bottomSheet = ref(null);
@@ -331,14 +486,85 @@ const swipeThreshold = 80;
 
 // Constants
 const tabs = [
+{ key: 'new', name: 'New Game' },
   { key: 'active', name: 'Active Games' },
+  { key: 'multiplayer', name: 'Multiplayer' },
   { key: 'completed', name: 'Completed' },
-  { key: 'new', name: 'New Game' }
-];
-// Computed
+];const selectOpponent = async (opponentType) => {
+  selectedOpponent.value = opponentType;
+  selectedPlayerOpponent.value = null;
+  error.value = null;
+  
+  if (opponentType === 'player') {
+    loadingPlayers.value = true;
+    try {
+      const players = await getAvailablePlayers();
+      availablePlayers.value = players.filter(p => p.id !== authStore.user.uid);
+    } catch (err) {
+      error.value = 'Failed to load available players';
+      console.error(err);
+    } finally {
+      loadingPlayers.value = false;
+    }
+  }
+};
+
+// Add method to select a specific player
+const selectPlayerOpponent = (player) => {
+  selectedPlayerOpponent.value = player;
+};
+
+// Modify the canStart computed property
 const canStart = computed(() => {
-  return selectedScenario.value && selectedOpponent.value && !loading.value;
+  if (!selectedScenario.value || !selectedOpponent.value || loading.value) {
+    return false;
+  }
+  
+  if (selectedOpponent.value === 'player' && !selectedPlayerOpponent.value) {
+    return false;
+  }
+  
+  return true;
 });
+
+// Modify the startGame method
+const startGame = async () => {
+  if (!canStart.value) return;
+  
+  loading.value = true;
+  error.value = null;
+
+  try {
+    if (!authStore.user) {
+      throw new Error('Please sign in to start a game');
+    }
+
+    let game;
+    if (selectedOpponent.value === 'player') {
+      game = await createMultiplayerGame(selectedScenario.value, selectedPlayerOpponent.value.id);
+    } else {
+      game = await createNewGame(selectedScenario.value);
+    }
+    
+    if (!game || !game.id) {
+      throw new Error('Failed to create game');
+    }
+
+    cleanupGameListener();
+    hideModal('startModal');
+    await router.push(`/game/${game.id}`);
+
+  } catch (err) {
+    console.error('Failed to create game:', err);
+    error.value = err.message || 'Failed to start game. Please try again.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+//////
+
+
 
 // Methods
 const formatDate = (timestamp) => {
@@ -402,41 +628,36 @@ const selectScenario = (scenarioId) => {
   error.value = null;
 };
 
-const selectOpponent = (opponentType) => {
-  selectedOpponent.value = opponentType;
-  error.value = null;
+
+// Add new methods for multiplayer
+const handleCreateMultiplayerGame = async () => {
+  if (!selectedScenario.value) {
+    error.value = 'Please select a scenario first';
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const game = await createMultiplayerGame(selectedScenario.value);
+    if (game) {
+      hideModal('startModal');
+      await router.push(`/game/${game.id}`);
+    }
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    loading.value = false;
+  }
 };
 
-// Add to startGame in your GameMenu component
-const startGame = async () => {
-  if (!canStart.value) return;
-  
+const handleJoinGame = async (gameId) => {
   loading.value = true;
-  error.value = null;
-
   try {
-    console.log('Starting game creation...');
-    console.log('Selected scenario:', selectedScenario.value);
-    console.log('Auth status:', !!authStore.user);
-
-    if (!authStore.user) {
-      throw new Error('Please sign in to start a game');
-    }
-
-    const game = await createNewGame(selectedScenario.value);
-    console.log('Game created:', game);
-    
-    if (!game || !game.id) {
-      throw new Error('Failed to create game');
-    }
-
-    cleanupGameListener();
+    await joinGame(gameId);
     hideModal('startModal');
-    await router.push(`/game/${game.id}`);
-
+    await router.push(`/game/${gameId}`);
   } catch (err) {
-    console.error('Failed to create game:', err);
-    error.value = err.message || 'Failed to start game. Please try again.';
+    error.value = err.message;
   } finally {
     loading.value = false;
   }
@@ -517,6 +738,8 @@ const resetSheetHeight = () => {
   }
 };
 
+
+
 // Lifecycle hooks
 onMounted(async () => {
   // Set initial sheet height
@@ -533,6 +756,7 @@ onMounted(async () => {
   // Load player's games
   if (authStore.user) {
     await fetchPlayerGames(authStore.user.uid);
+    watchPendingGames();
   }
 });
 
@@ -543,6 +767,10 @@ onUnmounted(() => {
   document.removeEventListener("touchmove", dragging);
   document.removeEventListener("touchend", dragStop);
 });
+
+  // Add multiplayer cleanup
+  cleanup();
+  cleanupGameListener();
 </script>
 
 <style scoped>

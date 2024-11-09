@@ -6,6 +6,26 @@ export default defineNuxtConfig({
     ],
   },
 
+  nitro: {
+    storage: {
+      fs: {
+        driver: 'fs',
+        base: './'
+      }
+    },
+    routeRules: {
+      '/_upload/**': {
+        proxy: '~/server/api/upload.post.js'
+      }
+    },
+    publicAssets: [
+      {
+        dir: 'public/uploads',
+        maxAge: 60 * 60 * 24 * 7 // 1 week
+      }
+    ]
+  },
+
   devtools: { enabled: true },
   runtimeConfig: {
     openaiApiKey: process.env.NUXT_OPENAI_API_KEY
@@ -57,6 +77,12 @@ export default defineNuxtConfig({
     },
     '/gamemenu': {
       ssr: false
+    },
+    '/uploads/**': {
+      cors: true,
+      headers: {
+        'Cache-Control': 'public, max-age=604800'
+      }
     }
   },
 
@@ -148,6 +174,18 @@ export default defineNuxtConfig({
             },
           },
         },
+
+        {
+          urlPattern: /\/uploads\/.*/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'uploaded-images',
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+            }
+          }
+        }
       ],
     },
     devOptions: {

@@ -1,24 +1,26 @@
 // composables/useAuth.js
 import { ref, computed } from 'vue'
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
+import {
+  getAuth,
+  signInWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  onAuthStateChanged as firebaseAuthStateChanged
+  updateProfile,
+  onAuthStateChanged
 } from 'firebase/auth'
+import { useAuthStore } from "@/stores/authStore"
+import { useFirebase } from './useFirebase'
 
 export const useAuth = () => {
   const user = ref(null)
   const loading = ref(true)
   const error = ref(null)
+  const { auth } = useFirebase()
+  const authStore = useAuthStore()
 
   let unsubscribe = null
 
-  const auth = getAuth()
-
-  // Email/Password login
   const login = async (email, password) => {
     try {
       error.value = null
@@ -32,7 +34,6 @@ export const useAuth = () => {
     }
   }
 
-  // Google login
   const loginWithGoogle = async () => {
     try {
       error.value = null
@@ -47,7 +48,6 @@ export const useAuth = () => {
     }
   }
 
-  // Logout
   const logout = async () => {
     try {
       await signOut(auth)
@@ -57,7 +57,6 @@ export const useAuth = () => {
     }
   }
 
-  // Helper function to get user-friendly error messages
   const getErrorMessage = (code) => {
     switch (code) {
       case 'auth/user-not-found':
@@ -75,15 +74,77 @@ export const useAuth = () => {
     }
   }
 
-  // Initialize auth state listener
+  const updateProfileImage = async (file) => {
+    if (!file) {
+      console.error("No file selected");
+      return null;
+    }
+  
+    if (!auth.currentUser) {
+      console.error("User must be authenticated");
+      return null;
+    }
+  
+    try {
+      loading.value = true;
+      error.value = null;
+  
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', auth.currentUser.uid);
+  
+      // Upload file
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+  
+      const { fileUrl } = await response.json();
+  
+      // Update Firebase auth profile
+      await updateProfile(auth.currentUser, {
+        photoURL: fileUrl
+      });
+  
+      // Update auth store
+      authStore.setUser({
+        ...authStore.user,
+        photoURL: fileUrl,
+      });
+  
+      return fileUrl;
+  
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   const init = () => {
-    unsubscribe = firebaseAuthStateChanged(auth, (currentUser) => {
+    unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       user.value = currentUser
+      if (currentUser) {
+        authStore.setUser({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName,
+          photoURL: currentUser.photoURL
+        })
+      } else {
+        authStore.clearUser()
+      }
       loading.value = false
     })
   }
 
-  // Cleanup function
   const cleanup = () => {
     if (unsubscribe) {
       unsubscribe()
@@ -91,9 +152,6 @@ export const useAuth = () => {
   }
 
   // Initialize on composable creation
-  init()
-
-  // Expose cleanup for component unmount
   if (process.client) {
     const nuxtApp = useNuxtApp()
     nuxtApp.hook('app:beforeMount', init)
@@ -107,6 +165,9 @@ export const useAuth = () => {
     login,
     loginWithGoogle,
     logout,
+    updateProfileImage,
+    loading,
+    error,
     isAuthenticated: computed(() => user.value !== null)
   }
 }

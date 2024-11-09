@@ -179,23 +179,20 @@ import {
   orderByChild,
   equalTo,
 } from "firebase/database";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
-import { getStorage } from "firebase/storage";
+import { getAuth, updateProfile } from "firebase/auth";
 
 const router = useRouter();
 const { database } = useFirebase();
 const authStore = useAuthStore();
+const {updateProfileImage,loading,error} = useAuth();
+
 
 // State
 const isEditing = ref(false);
 const editedName = ref("");
 const completedGames = ref([]);
 const isLoading = ref(true);
-const error = ref(null);
+// const error = ref(null);
 
 const stats = ref({
   totalGames: 0,
@@ -226,6 +223,7 @@ const userTitle = computed(() => {
 const toggleEdit = () => {
   if (isEditing.value) {
     saveProfile();
+    handleUpdateDisplayName();
   } else {
     editedName.value = authStore.user?.displayName || '';
     isEditing.value = true;
@@ -253,31 +251,79 @@ const saveProfile = async () => {
   }
 };
 
-const handleImageUpload = async (event) => {
-  const file = event.target.files[0];
-  if (!file || !authStore.user?.uid) return;
-
+const handleUpdateDisplayName = () => {
+  const auth = getAuth();
   try {
-    const storage = getStorage();
-    const imageRef = storageRef(storage, `profiles/${authStore.user.uid}`);
-
-    await uploadBytes(imageRef, file);
-    const url = await getDownloadURL(imageRef);
-
-    const userRef = dbRef(database, `users/${authStore.user.uid}`);
-    await update(userRef, {
-      profileUrl: url,
-    });
-
-    // Update auth store
-    authStore.setUser({
-      ...authStore.user,
-      photoURL: url
-    });
+  updateProfile(auth.currentUser, { displayName: editedName.value }).then(() => {
+    console.log("Profile updated successfully");
+  });
   } catch (error) {
-    console.error("Error uploading image:", error);
+    console.error("Error updating profile:", error);
   }
 };
+
+
+// const handleImageUpload = async (event) => {
+//   const file = event.target.files[0];
+//   if (!file) return;
+
+//   updateProfileImage(file);
+// };
+
+// const handleImageUpload = async (event) => {
+//   try {
+//      const file = event.target.files[0];
+//   if (!file) return;
+    
+//     const imageUrl = await firebase.updateProfileImage(file);
+
+//     //   await firebase.updateProfile({ photoURL: imageUrl })
+//     await firebase.updateProfile(firebase.auth.currentUser, {
+//       photoURL: imageUrl,
+//     });
+    
+//     alert("Profile image updated successfully");
+//     firestore.getUserClaims();
+//   } catch (error) {
+//     console.error("Error uploading image:", error);
+//     alert("An error occurred while updating the profile.");
+//   }
+// };
+
+const currentPhotoURL = computed(() => user.value?.photoURL)
+
+const handleImageUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  // Reset error
+  error.value = null
+  
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    error.value = 'Please select an image file'
+    return
+  }
+
+  // Validate file size (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    error.value = 'File size must be less than 5MB'
+    return
+  }
+
+  try {
+    // loading.value = true
+    await updateProfileImage(file)
+    // Optional: Show success message
+    // toast.success('Profile photo updated successfully')
+  } catch (e) {
+    error.value = e.message || 'Error uploading image'
+    console.error('Error uploading image:', e)
+    // toast.error(error.value)
+  } finally {
+    // loading.value = false
+  }
+}
 
 const fetchGameData = async () => {
   if (!authStore.user?.uid) return;

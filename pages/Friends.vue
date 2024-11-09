@@ -76,6 +76,9 @@
   
   <script setup>
   import { ref } from 'vue'
+  definePageMeta({
+  middleware: ["auth"],
+});
   
   // State
   const currentTab = ref('friends')

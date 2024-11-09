@@ -126,124 +126,34 @@
     </div>
   </template>
 </div>
-<!-- Multiplayer Tab Content -->
-<div v-else-if="currentTab === 'multiplayer'" class="space-y-4">
-              <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-medium text-gray-900">Multiplayer Games</h2>
-                <div class="grid grid-cols-1 gap-4">
-  <div v-for="scenario in availableScenarios" :key="scenario.id"
-    class="relative flex items-center space-x-3 rounded-lg border p-3 hover:border-gray-400 cursor-pointer"
-    :class="selectedScenario === scenario.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
-    @click="selectScenario(scenario.id)">
-    <div class="flex-shrink-0">
-      <img :src="scenario.image" :alt="scenario.title" class="h-10 w-10 rounded-full">
-    </div>
-    <div class="min-w-0 flex-1">
-      <div class="text-sm font-medium text-gray-900">{{ scenario.title }}</div>
-      <p class="text-sm text-gray-500">{{ scenario.description }}</p>
-    </div>
-    <div v-if="selectedScenario === scenario.id" class="text-purple-500">
-      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clip-rule="evenodd" />
-      </svg>
-    </div>
-  </div>
-</div>
-                <button
-                  @click="handleCreateMultiplayerGame"
-                  class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md"
-                >
-                  <span>Create Game</span>
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
 
-              <!-- Available Games Section -->
-              <div class="bg-white rounded-lg shadow-sm divide-y divide-gray-200">
-                <div class="p-4">
-                  <h3 class="text-sm font-medium text-gray-900">Available Games</h3>
-                </div>
-                
-                <!-- Loading State -->
-                <div v-if="loadingMultiplayer" class="p-8 flex justify-center">
-                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                </div>
-
-                <!-- No Games State -->
-                <div v-else-if="pendingGames.length === 0" class="p-8 text-center">
-                  <p class="text-sm text-gray-500">No games available to join</p>
-                </div>
-
-                <!-- Games List -->
-                <div v-else class="divide-y divide-gray-200">
-                  <div 
-                    v-for="game in pendingGames" 
-                    :key="game.id" 
-                    class="p-4 hover:bg-gray-50"
-                  >
-                    <div class="flex justify-between items-center">
-                      <div>
-                        <h4 class="text-sm font-medium text-gray-900">
-                          {{ game.scenario.title }}
-                        </h4>
-                        <div class="mt-1 flex items-center space-x-2">
-                          <span class="text-xs text-gray-500">
-                            Host: {{ game.hostName }}
-                          </span>
-                          <span class="text-gray-300">•</span>
-                          <span class="text-xs text-gray-500">
-                            Players: {{ game.playerCount }}/{{ game.maxPlayers }}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        @click="handleJoinGame(game.id)"
-                        class="px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
-                        :disabled="game.playerCount >= game.maxPlayers"
-                      >
-                        Join Game
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Error Message -->
-              <div 
-                v-if="multiplayerError" 
-                class="mt-4 px-4 py-3 rounded-md bg-red-50 text-red-600 text-sm"
-              >
-                {{ multiplayerError }}
-              </div>
-            </div>
 
             <!-- New Game Form -->
             <div v-else-if="currentTab === 'new'" class="space-y-6">
-              <div class="grid grid-cols-1 gap-4">
-  <div v-for="scenario in availableScenarios" :key="scenario.id"
-    class="relative flex items-center space-x-3 rounded-lg border p-3 hover:border-gray-400 cursor-pointer"
-    :class="selectedScenario === scenario.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
-    @click="selectScenario(scenario.id)">
-    <div class="flex-shrink-0">
-      <img :src="scenario.image" :alt="scenario.title" class="h-10 w-10 rounded-full">
-    </div>
-    <div class="min-w-0 flex-1">
-      <div class="text-sm font-medium text-gray-900">{{ scenario.title }}</div>
-      <p class="text-sm text-gray-500">{{ scenario.description }}</p>
-    </div>
-    <div v-if="selectedScenario === scenario.id" class="text-purple-500">
-      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clip-rule="evenodd" />
-      </svg>
-    </div>
-  </div>
-</div>
+              <div class="overflow-x-auto flex gap-4 snap-x snap-mandatory pb-4">
+            <div  v-for="scenario in availableScenarios" :key="scenario.id" :class="selectedScenario === scenario.id ? 'border-purple-500 bg-purple-50' : 'border-gray-200'"
+                  @click="selectScenario(scenario.id)"
+              class="snap-center shrink-0 w-[calc(100%-2rem)] sm:w-48 bg-[#8e61ee] rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow">
+              <!-- Game Image -->
+              <div class="h-32 bg-gray-200 relative">
+                <img :src="scenario?.imageUrl || '/api/placeholder/192/128'" :alt="scenario?.title"
+                  class="w-full h-full object-cover" />
+                
+              </div>
+
+              <!-- Game Info -->
+              <div class="p-3 text-white">
+                <h3 class="font-medium text-sm line-clamp-1">
+                  {{ scenario?.title }}
+                </h3>
+                <div class="mt-1 flex justify-between items-center">
+                  <span class="text-xs truncate">{{
+                    scenario.description || 0
+                  }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
               <div class="mb-6">
     <label class="block text-sm font-medium text-gray-700 mb-2">
       Select Opponent
@@ -361,71 +271,7 @@
               </div>
             </div>
 
-            <!-- Completed Games List -->
-            <div v-else-if="currentTab === 'completed'" class="space-y-4">
-              <div v-if="loadingGames" class="flex justify-center py-8">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              </div>
 
-              <div v-else-if="completedGames.length === 0" class="text-center py-8">
-                <p class="text-gray-500">No completed games found</p>
-              </div>
-
-              <template v-else>
-                <div 
-                  v-for="game in completedGames" 
-                  :key="game.id"
-                  class="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div class="w-full p-4">
-                    <div class="flex justify-between items-center">
-                      <div>
-                        <h3 class="text-lg font-medium text-gray-900">
-                          {{ game.scenario.title }}
-                        </h3>
-                        <div class="flex items-center mt-1 space-x-2">
-                          <span class="text-sm px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                            Completed
-                          </span>
-                          <span class="text-sm text-gray-300">•</span>
-                          <span class="text-sm text-gray-500">
-                            {{ formatDate(game.createdAt) }}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="text-right flex items-center space-x-2">
-                        <div class="text-center">
-                          <p class="text-xs text-gray-500">Final Score</p>
-                          <p class="text-lg font-medium text-purple-600">
-                            {{ game.players[authStore.user.uid].score }}
-                          </p>
-                        </div>
-                        <button 
-                          @click="viewGameSummary(game.id)"
-                          class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md"
-                        >
-                          <span>View Summary</span>
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            class="h-5 w-5" 
-                            fill="none" 
-                            viewBox="0 0 24 24" 
-                            stroke="currentColor"
-                          >
-                            <path 
-                              stroke-linecap="round" 
-                              stroke-linejoin="round" 
-                              stroke-width="2" 
-                              d="M9 5l7 7-7 7" 
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </div>
 
           </div>
         </div>
@@ -487,9 +333,7 @@ const swipeThreshold = 80;
 // Constants
 const tabs = [
 { key: 'new', name: 'New Game' },
-  { key: 'active', name: 'Active Games' },
-  { key: 'multiplayer', name: 'Multiplayer' },
-  { key: 'completed', name: 'Completed' },
+  { key: 'active', name: 'Active Games' }
 ];const selectOpponent = async (opponentType) => {
   selectedOpponent.value = opponentType;
   selectedPlayerOpponent.value = null;

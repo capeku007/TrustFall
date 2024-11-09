@@ -1,45 +1,45 @@
 <template>
-  <div class="min-h-screen overflow-auto bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen bg-gray-900">
     <!-- Loading State -->
-    <div v-if="isLoading" class="flex items-center justify-center min-h-screen">
+    <div v-if="isLoading" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center min-h-screen">
-      <div class="text-center p-6 bg-white rounded-lg shadow-sm max-w-md">
-        <p class="text-red-600">{{ error }}</p>
-        <button @click="router.push('/gamemenu')" class="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg">
+    <div v-else-if="error" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50 px-4">
+      <div class="text-center p-6 bg-gray-800 rounded-xl shadow-lg w-full max-w-md">
+        <p class="text-red-400">{{ error }}</p>
+        <button @click="router.push('/gamemenu')" 
+                class="mt-4 w-full py-3 bg-purple-600 text-white rounded-lg font-medium">
           Return to Menu
         </button>
       </div>
     </div>
 
-    
     <!-- Game Content -->
     <template v-else-if="currentGame">
-      <!-- Game Header with DM Score -->
-      <div class="max-w-3xl mx-auto mb-8">
-        <div class="bg-white rounded-lg shadow-sm p-6">
+      <!-- Sticky Game Header -->
+      <div class="sticky top-0 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 z-40">
+        <div class="max-w-3xl mx-auto px-4 py-3">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-2xl font-bold text-gray-900">
-                {{ currentGame.currentScene?.title || "Loading..." }}
-              </h1>
-              <p class="mt-1 text-sm text-gray-500">
+              <p class="text-sm font-medium text-gray-400">
                 Round {{ currentGame.currentRound }} of 5
               </p>
+              <h1 class="text-base font-bold text-white line-clamp-1">
+                {{ currentGame.currentScene?.title || "Loading..." }}
+              </h1>
             </div>
-            <div class="text-right">
-              <p class="text-purple-600 font-semibold">DM Points: {{ currentGame.dmPoints || 0 }}</p>
-              <p class="text-gray-600">Your Score: {{ playerScore }}</p>
+            <div class="text-right space-y-0.5">
+              <p class="text-sm font-medium text-purple-400">DM Score: {{ currentGame.dmPoints || 0 }}</p>
+              <p class="text-sm font-medium text-gray-400">Your Score: {{ playerScore }}</p>
             </div>
           </div>
 
           <!-- Progress Bar -->
-          <div class="mt-4">
-            <div class="h-2 bg-gray-200 rounded-full">
-              <div class="h-2 bg-purple-600 rounded-full transition-all duration-500"
+          <div class="mt-2">
+            <div class="h-1 bg-gray-800 rounded-full overflow-hidden">
+              <div class="h-1 bg-purple-600 rounded-full transition-all duration-500"
                 :style="{ width: `${(currentGame.currentRound / 5) * 100}%` }">
               </div>
             </div>
@@ -47,92 +47,144 @@
         </div>
       </div>
 
-      <!-- Main Game Area -->
-      <div class="max-w-3xl mx-auto space-y-6">
-        <!-- Scene Description and DM Narration -->
-        <div v-if="currentGame.currentScene && !showingResults" 
-             class="bg-purple-50 rounded-lg shadow-sm p-6 border-2 border-purple-200">
-          <h2 class="text-xl font-semibold text-gray-900">
-            {{ currentGame.currentScene.title }}
-          </h2>
-          <p class="m-2 text-gray-600">{{ currentGame.currentScene.description }}</p>
-
-          <div class="flex items-center mb-4">
-            <div class="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
-              <span class="text-2xl">🎭</span>
+      <!-- Active Effects Bar -->
+      <div v-if="currentGame.consequences && Object.keys(currentGame.consequences).length > 0"
+           class="bg-gray-800/50 backdrop-blur-sm">
+        <div class="max-w-3xl mx-auto px-4 py-2 overflow-x-auto">
+          <div class="flex space-x-4">
+            <div v-for="(consequence, index) in currentGame.consequences" 
+                 :key="index"
+                 class="flex items-center space-x-2 flex-shrink-0">
+              <span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+              <span class="text-xs text-gray-300">{{ consequence.description }}</span>
             </div>
-            <h2 class="ml-4 text-xl font-semibold text-purple-900">Dungeon Master</h2>
           </div>
-          
-          <div class="space-y-3">
-            <p v-for="(line, index) in currentNarration" 
-               :key="index"
-               class="text-purple-800 italic"
-               :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5}s`}">
-              "{{ line }}"
-            </p>
+        </div>
+      </div>
+
+      <!-- Main Scene Area -->
+      <div v-if="currentGame.currentScene && !showingResults" 
+           class="relative min-h-[60vh]">
+        <!-- Scene Image with Parallax -->
+        <div class="absolute inset-0 overflow-hidden">
+          <img 
+            :src="currentGame.currentScene.imageUrl || '/api/placeholder/800/600'" 
+            :alt="currentGame.currentScene.title"
+            class="w-full h-full object-cover transform scale-105 animate-ken-burns"
+          />
+          <div class="absolute inset-0 bg-gradient-to-b from-gray-900/40 via-gray-900/60 to-gray-900"></div>
+        </div>
+
+        <!-- Animated Description -->
+        <div class="relative px-4 py-12">
+          <div 
+            class="max-w-2xl mx-auto text-white text-lg font-medium text-center leading-relaxed opacity-0 animate-fadeIn"
+            style="animation-delay: 0.5s; animation-fill-mode: forwards;"
+          >
+            {{ currentGame.currentScene.description }}
           </div>
         </div>
 
-        <!-- Game Interaction Area -->
-        <div v-if="currentGame.currentScene && !showingResults" class="bg-white rounded-lg shadow-sm p-6">
-          <!-- Active Consequences -->
-          <div v-if="currentGame.consequences && Object.keys(currentGame.consequences).length > 0"
-               class="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 class="font-semibold text-gray-700 mb-2">Active Effects:</h3>
-            <ul class="space-y-2">
-              <li v-for="(consequence, index) in currentGame.consequences" 
-                  :key="index"
-                  class="text-sm text-gray-600 flex items-center">
-                <span class="w-2 h-2 bg-purple-400 rounded-full mr-2"></span>
-                {{ consequence.description }}
-              </li>
-            </ul>
+        <!-- DM Avatar and Chat -->
+        <div class="relative px-4 mt-4 max-w-3xl mx-auto">
+          <div class="flex items-end space-x-3">
+            <!-- DM Avatar with Lottie -->
+            <div 
+              ref="dmAvatar"
+              class="w-14 h-14 rounded-full bg-purple-900/50 backdrop-blur-sm overflow-hidden flex-shrink-0 border-2 border-purple-500/30"
+            >
+              <!-- Lottie animation will be mounted here -->
+            </div>
+
+            <!-- Chat Bubble -->
+            <div 
+              class="flex-1 mb-2 transform transition-all duration-300"
+              :class="isChatMinimized ? 'scale-95 opacity-80' : 'scale-100 opacity-100'"
+            >
+              <div 
+                @click="toggleChat"
+                class="bg-purple-900/50 backdrop-blur-sm rounded-t-2xl rounded-br-2xl p-4 text-white cursor-pointer relative chat-bubble"
+              >
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium text-purple-300">Dungeon Master</span>
+                  <button 
+                    class="text-purple-400 hover:text-purple-300 transition-colors"
+                    @click.stop="toggleChat"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      class="h-5 w-5 transition-transform duration-300" 
+                      :class="isChatMinimized ? 'rotate-180' : ''"
+                      viewBox="0 0 20 20" 
+                      fill="currentColor"
+                    >
+                      <path 
+                        fill-rule="evenodd" 
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                        clip-rule="evenodd" 
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div 
+                  class="space-y-2 overflow-hidden transition-all duration-300"
+                  :class="isChatMinimized ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'"
+                >
+                  <p 
+                    v-for="(line, index) in currentNarration" 
+                    :key="index"
+                    class="text-sm italic leading-relaxed text-gray-100"
+                    :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5 + 1}s forwards`}"
+                  >
+                    "{{ line }}"
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Skill Check Section -->
-          <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed" 
-               class="mb-6 bg-white rounded-lg shadow-sm p-6">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <h3 class="font-semibold text-gray-900">Skill Check Required</h3>
-                <p class="text-sm text-gray-600">
-                  DC {{ currentGame.currentScene.skillCheck?.dcCheck }} 
-                  {{ currentGame.currentScene.skillCheck?.name }}
-                </p>
-                <p class="text-xs text-gray-500 mt-1">
-                  (2d6 + modifier, success on meet or exceed)
-                </p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm text-gray-600">
-                  Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
-                </p>
+      <!-- Game Interaction Area -->
+      <div class="relative z-10 mt-6">
+        <!-- Dice Roll Section -->
+        <div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed">
+          <div class="max-w-3xl mx-auto px-4">
+            <!-- Skill Check Info -->
+            <div v-if="!diceResult && !isRolling"
+                 class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 mb-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-white font-medium">Skill Check Required</h3>
+                  <p class="text-sm text-gray-300">
+                    DC {{ currentGame.currentScene.skillCheck?.dcCheck }} 
+                    {{ currentGame.currentScene.skillCheck?.name }}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm text-gray-300">
+                    Modifier: {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <!-- Dice Rolling Interface -->
-            <div v-if="!diceResult && !isRolling" class="text-center">
-              <button @click="performDiceRoll"
-                      class="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-                <span class="mr-2">🎲</span>
-                Roll for {{ currentGame.currentScene.skillCheck?.name }}
-              </button>
-            </div>
-
-            <!-- Dice Result Display -->
-            <div v-else class="text-center p-4">
-              <div v-if="isRolling" class="text-2xl font-bold text-purple-600 animate-bounce">
+            <!-- Roll Animation or Result -->
+            <div v-if="isRolling || diceResult" 
+                 class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 text-center mb-4">
+              <div v-if="isRolling" class="text-2xl font-bold text-purple-400 animate-bounce">
                 Rolling...
               </div>
               <div v-else class="space-y-2">
-                <p class="text-2xl font-bold" :class="getRollClass(currentGame.currentScene.skillCheck?.dcCheck)">
-                  {{ diceResults[0] }} + {{ diceResults[1] }}
-                  <span class="text-sm font-normal" v-if="diceModifiers !== 0">
+                <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene.skillCheck?.dcCheck)">
+                  {{ finalDiceResult }}
+                </p>
+                <div class="text-gray-400 space-x-2">
+                  <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>
+                  <span v-if="diceModifiers !== 0">
                     ({{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }})
                   </span>
-                  = {{ finalDiceResult }}
-                </p>
+                </div>
                 <p class="text-sm" :class="getRollClass(currentGame.currentScene.skillCheck?.dcCheck)">
                   {{ getRollDescription(currentGame.currentScene.skillCheck?.dcCheck) }}
                 </p>
@@ -140,63 +192,106 @@
             </div>
           </div>
 
-<!-- Choice Buttons -->
-<!-- Choice Buttons -->
-<div v-if="!hasPlayerMadeChoice && !hasRoundBeenPlayed && diceResult && currentGame?.currentScene?.choices" 
-     class="mt-8 grid grid-cols-3 gap-4">
-  <button v-for="(choice, key) in currentGame.currentScene.choices"
-          :key="key"
-          @click="makePlayerChoice(key)"
-          :disabled="playerChoice !== null"
-          :class="getChoiceButtonClasses(key)">
-    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-         :class="getChoiceIconClasses(key)">
-      <span :class="getChoiceTextClass(key)">
-        {{ getChoiceIcon(key) }}
-      </span>
-    </div>
-    <h3 class="font-semibold text-gray-900">{{ choice.text }}</h3>
-    <p class="mt-1 text-sm text-gray-500 text-center">
-      {{ choice.description }}
-    </p>
-    <div v-if="choice.bonuses?.length" 
-         class="mt-2 text-xs text-gray-600">
-      <div v-for="bonus in choice.bonuses" 
-           :key="bonus.type" 
-           class="flex items-center">
-        <span class="w-2 h-2 bg-purple-400 rounded-full mr-1"></span>
-        {{ bonus.description }}
-      </div>
-    </div>
-  </button>
-</div>
-          <!-- Round Outcome -->
-          <div v-if="roundOutcome?.narrative" 
-               class="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 class="font-semibold text-gray-900 mb-2">Outcome:</h3>
-            <p class="text-gray-700 italic mb-2">{{ roundOutcome.narrative }}</p>
-            <div class="flex justify-between text-sm">
-              <span class="text-purple-600">
-                Points Earned: {{ roundOutcome.playerPoints || 0 }}
-              </span>
-              <span class="text-gray-600">
-                DM Points: +{{ roundOutcome.dmPoints || 0 }}
-              </span>
+          <!-- Roll Button or Choices -->
+          <div class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12">
+            <div class="max-w-3xl mx-auto px-4 pb-4">
+              <div v-if="!diceResult && !isRolling">
+                <button 
+                  @click="performDiceRoll"
+                  class="w-full py-4 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                >
+                  <span class="text-2xl">🎲</span>
+                  <span>Roll for {{ currentGame.currentScene.skillCheck?.name }}</span>
+                </button>
+              </div>
+
+              <!-- Choice Buttons -->
+              <div v-else-if="diceResult && currentGame.currentScene.choices" 
+                   class="space-y-3">
+                <button v-for="(choice, key) in currentGame.currentScene.choices"
+                        :key="key"
+                        @click="makePlayerChoice(key)"
+                        :disabled="playerChoice !== null"
+                        class="w-full group relative overflow-hidden"
+                >
+                  <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 transform transition-all duration-300"
+                       :class="[
+                         playerChoice === key ? 'ring-2 ring-purple-500 scale-[0.98]' : 'hover:scale-[0.98]',
+                         getChoiceClasses(key)
+                       ]"
+                  >
+                    <div class="flex items-center space-x-4">
+                      <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                           :class="getChoiceIconClasses(key)">
+                        <span :class="getChoiceTextClass(key)" class="text-xl">
+                          {{ getChoiceIcon(key) }}
+                        </span>
+                      </div>
+                      <div class="flex-1">
+                        <h3 class="font-medium text-white">{{ choice.text }}</h3>
+                        <p class="text-sm text-gray-300">
+                          {{ choice.description }}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div v-if="choice.bonuses?.length" 
+                         class="mt-3 space-y-1">
+                      <div v-for="bonus in choice.bonuses" 
+                           :key="bonus.type" 
+                           class="flex items-center text-xs text-gray-400">
+                        <span class="w-1.5 h-1.5 bg-purple-400 rounded-full mr-1.5"></span>
+                        {{ bonus.description }}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Round Outcome -->
+        <div v-if="roundOutcome?.narrative" 
+             class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12">
+          <div class="max-w-3xl mx-auto px-4 pb-4">
+            <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 space-y-3 animate-slideUp">
+              <p class="text-gray-100 italic">{{ roundOutcome.narrative }}</p>
+              <div class="flex justify-between text-sm">
+                <span class="text-purple-400 font-medium">
+                  +{{ roundOutcome.playerPoints || 0 }} points
+                </span>
+                <span class="text-gray-400">
+                  DM: +{{ roundOutcome.dmPoints || 0 }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Game End Screen -->
-        <div v-if="isGameOver" class="mt-8 text-center bg-white rounded-lg shadow-sm p-6">
-          <h2 class="text-2xl font-bold text-gray-900 mb-4">Game Over!</h2>
-          <div class="mb-6">
-            <p class="text-xl">{{ getWinnerMessage() }}</p>
-            <p class="mt-2 text-gray-600">DM's Final Score: {{ currentGame.dmPoints }}</p>
+        <div v-if="isGameOver" 
+             class="fixed inset-0 bg-gray-900/98 backdrop-blur-lg z-50 flex items-center justify-center p-4">
+          <div class="w-full max-w-md text-center space-y-6 animate-fadeIn">
+            <div class="space-y-4">
+              <h2 class="text-3xl font-bold text-white">Game Over!</h2>
+              <p class="text-xl text-gray-300">{{ getWinnerMessage() }}</p>
+              <div class="flex justify-center space-x-8 text-center">
+                <div>
+                  <p class="text-sm text-gray-400">Your Score</p>
+                  <p class="text-2xl font-bold text-white">{{ playerScore }}</p>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-400">DM's Score</p>
+                  <p class="text-2xl font-bold text-purple-400">{{ currentGame.dmPoints }}</p>
+                </div>
+              </div>
+            </div>
+            <button @click="$emit('game-complete')"
+                    class="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium">
+              View Game Summary
+            </button>
           </div>
-          <button @click="$emit('game-complete')"
-                  class="w-full inline-flex justify-center items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-            View Game Summary
-          </button>
         </div>
       </div>
     </template>
@@ -209,6 +304,12 @@ import { useRoute, useRouter } from "vue-router";
 import { useGame } from "~/composables/useGame";
 import { useAuthStore } from "~/stores/authStore";
 import { useDiceRoll } from '~/composables/useDiceRoll'
+
+// Import Lottie animations
+import dmIdleAnimation from '@/assets/animations/dm-idle.json';
+import dmTalkingAnimation from '@/assets/animations/dm-talking.json';
+import dmThinkingAnimation from '@/assets/animations/dm-thinking.json';
+import lottie from 'lottie-web';
 
 const props = defineProps({
   gameId: {
@@ -239,13 +340,19 @@ const {
   cleanupGameListener,
 } = useGame();
 
-// State
-const playerChoice = ref(null);
-const aiChoice = ref(null);
-const showingResults = ref(false);
+
+// UI State
+const dmAvatar = ref(null);
+const dmLottieAnimation = ref(null);
+const isChatMinimized = ref(false);
 const isLoading = ref(true);
 const error = ref(null);
-// State
+const playerChoice = ref(null);
+const showingResults = ref(false);
+const currentAnimationState = ref('idle');
+const aiChoice = ref(null);
+
+// Round outcome state
 const roundOutcome = ref({
   pointMultiplier: 1,
   playerPoints: 0,
@@ -253,43 +360,75 @@ const roundOutcome = ref({
   narrative: "",
 });
 
-definePageMeta({
-  layout: "ingame",
-});
+const dmAnimations = {
+  idle: () => import('@/assets/animations/dm-idle.json'),
+  talking: () => import('@/assets/animations/dm-talking.json'),
+  thinking: () => import('@/assets/animations/dm-thinking.json')
+};
 
-const currentScene = computed(() => currentGame.value?.currentScene || null)
+const loadDMLottieAnimation = async () => {
+  if (!dmAvatar.value) return;
 
+  try {
+    // Destroy existing animation if any
+    if (dmLottieAnimation.value) {
+      dmLottieAnimation.value.destroy();
+    }
+
+    // Get the correct animation data based on state
+    let animationData;
+    switch (currentAnimationState.value) {
+      case 'talking':
+        animationData = await dmAnimations.talking();
+        break;
+      case 'thinking':
+        animationData = await dmAnimations.thinking();
+        break;
+      default:
+        animationData = await dmAnimations.idle();
+    }
+
+    // Create new animation
+    dmLottieAnimation.value = lottie.loadAnimation({
+      container: dmAvatar.value,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      animationData: animationData.default // Note the .default when using dynamic import
+    });
+  } catch (err) {
+    console.error('Error loading animation:', err);
+  }
+};
+
+const updateDMAnimation = async (state) => {
+  currentAnimationState.value = state;
+  await loadDMLottieAnimation();
+};
+
+
+// computed
+// Computed properties
+const currentScene = computed(() => currentGame.value?.currentScene || null);
 
 const hasRoundBeenPlayed = computed(() => {
-  if (!currentGame.value || !authStore.user) return false
-  
-  const currentRoundChoices = currentGame.value.players[authStore.user.uid]?.choices || {}
-  return !!currentRoundChoices[currentGame.value.currentRound]
-})
+  if (!currentGame.value || !authStore.user) return false;
+  const currentRoundChoices = currentGame.value.players[authStore.user.uid]?.choices || {};
+  return !!currentRoundChoices[currentGame.value.currentRound];
+});
 
 const isGameOver = computed(() => {
-  if (!currentGame.value) return false
-  return currentGame.value.status === 'completed'
-})
+  if (!currentGame.value) return false;
+  return currentGame.value.status === 'completed';
+});
 
 const currentNarration = computed(() => {
   if (!currentGame.value?.currentScene?.narration) return [
     "The story continues...",
     "What will you choose?"
-  ]
-  return currentGame.value.currentScene.narration
-})
-const performDiceRoll = async () => {
-  try {
-    await rollDice()
-    currentModifier.value = diceModifiers.value
-  } catch (err) {
-    console.error('Error rolling dice:', err)
-  }
-}
-
-// Computed
-const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
+  ];
+  return currentGame.value.currentScene.narration;
+});
 
 const playerScore = computed(() => {
   if (!currentGame.value?.players?.[authStore.user?.uid]?.score) return 0;
@@ -297,6 +436,63 @@ const playerScore = computed(() => {
 });
 
 
+// Choice Methods
+const getChoiceClasses = (key) => {
+  const baseClasses = 'transition-all duration-300';
+  switch (key) {
+    case 'cooperate':
+      return `${baseClasses} hover:bg-green-900/20`;
+    case 'negotiate':
+      return `${baseClasses} hover:bg-purple-900/20`;
+    case 'betray':
+      return `${baseClasses} hover:bg-red-900/20`;
+    default:
+      return baseClasses;
+  }
+};
+
+const getChoiceIconClasses = (key) => {
+  switch (key) {
+    case 'cooperate':
+      return 'bg-green-900/50';
+    case 'negotiate':
+      return 'bg-purple-900/50';
+    case 'betray':
+      return 'bg-red-900/50';
+    default:
+      return '';
+  }
+};
+
+const getChoiceTextClass = (key) => {
+  switch (key) {
+    case 'cooperate':
+      return 'text-green-400';
+    case 'negotiate':
+      return 'text-purple-400';
+    case 'betray':
+      return 'text-red-400';
+    default:
+      return '';
+  }
+};
+
+const getChoiceIcon = (key) => {
+  switch (key) {
+    case 'cooperate':
+      return '✓';
+    case 'negotiate':
+      return '⟳';
+    case 'betray':
+      return '✗';
+    default:
+      return '';
+  }
+};
+
+
+// Computed
+const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
 
 const currentRound = computed(() => {
   if (!currentGame.value?.scenario?.rounds) return null;
@@ -306,51 +502,126 @@ const currentRound = computed(() => {
 });
 
 
+const toggleChat = async () => {
+  isChatMinimized.value = !isChatMinimized.value;
+  await updateDMAnimation(isChatMinimized.value ? 'idle' : 'talking');
+};
+
+const performDiceRoll = async () => {
+  await updateDMAnimation('thinking');
+  try {
+    await rollDice();
+    currentModifier.value = diceModifiers.value;
+  } catch (err) {
+    console.error('Error rolling dice:', err);
+  } finally {
+    await updateDMAnimation('talking');
+  }
+};
+
+
+const makePlayerChoice = async (choice) => {
+  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return;
+  if (!diceResult.value && !isRolling.value) return;
+  
+  updateDMAnimation('thinking');
+  playerChoice.value = choice;
+  
+  try {
+    const diceInfo = {
+      diceRoll: diceResult.value,
+      finalResult: finalDiceResult.value,
+      modifier: diceModifiers.value,
+      isCritical: diceResult.value === 12,
+      isCriticalFail: diceResult.value === 2,
+      dcCheck: currentGame.value.currentScene.skillCheck?.dcCheck || 10
+    };
+
+    roundOutcome.value = null;
+    const result = await makeChoice(props.gameId, choice, diceInfo);
+
+    if (result?.outcome) {
+      roundOutcome.value = {
+        ...result.outcome,
+        pointMultiplier: result.outcome.pointMultiplier || 1,
+        playerPoints: result.outcome.playerPoints || 0,
+        dmPoints: result.outcome.dmPoints || 0,
+        narrative: result.outcome.narrative || "The round concludes..."
+      };
+      updateDMAnimation('talking');
+    }
+
+    // Show outcome for 3 seconds
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Check if game is complete
+    if (currentGame.value?.status === 'completed') {
+      showingResults.value = true;
+      if (isComponentMounted.value) {
+        emit('game-complete');
+      }
+    } else {
+      // Reset state for next round
+      playerChoice.value = null;
+      roundOutcome.value = null;
+      resetRoll();
+      diceResult.value = null;
+      updateDMAnimation('idle');
+    }
+  } catch (err) {
+    console.error('Error making choice:', err);
+    error.value = err.message;
+    playerChoice.value = null;
+    roundOutcome.value = null;
+    updateDMAnimation('idle');
+  }
+};
+
+// Add a watch for game status changes
+watch(
+  () => currentGame.value?.status,
+  (newStatus) => {
+    if (newStatus === 'completed' && isComponentMounted.value) {
+      showingResults.value = true;
+      emit('game-complete');
+    }
+  }
+);
+
+// Modify the scene change watcher
+watch(
+  () => currentGame.value?.currentScene,
+  (newScene, oldScene) => {
+    if (newScene && newScene !== oldScene) {
+      // Reset all state for new scene
+      playerChoice.value = null;
+      roundOutcome.value = null;
+      diceResult.value = null;
+      resetRoll();
+      showingResults.value = false;
+      updateDMAnimation('talking');
+    }
+  },
+  { deep: true }
+);
+
 // Methods
+// Game Methods
 
 
+const getWinnerMessage = () => {
+  const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0;
+  const dmScore = currentGame.value?.dmPoints || 0;
 
-// Icon classes for each choice type
-const getChoiceIconClasses = (key) => {
-  switch (key) {
-    case 'cooperate':
-      return 'bg-green-100'
-    case 'negotiate':
-      return 'bg-purple-100'
-    case 'betray':
-      return 'bg-red-100'
-    default:
-      return ''
+  if (playerScore > dmScore) {
+    return "You've outsmarted the Dungeon Master! 🎉";
+  } else if (dmScore > playerScore) {
+    return "The Dungeon Master prevails! Better luck next time! 😈";
+  } else {
+    return "A perfect balance - it's a tie! 🤝";
   }
-}
+};
 
-// Text color classes for each choice type
-const getChoiceTextClass = (key) => {
-  switch (key) {
-    case 'cooperate':
-      return 'text-green-600'
-    case 'negotiate':
-      return 'text-purple-600'
-    case 'betray':
-      return 'text-red-600'
-    default:
-      return ''
-  }
-}
-
-// Icons for each choice type
-const getChoiceIcon = (key) => {
-  switch (key) {
-    case 'cooperate':
-      return '✓'
-    case 'negotiate':
-      return '⟳'
-    case 'betray':
-      return '✗'
-    default:
-      return ''
-  }
-}
 
 // Button classes including hover and active states
 const getChoiceButtonClasses = (key) => {
@@ -374,30 +645,6 @@ const getChoiceButtonClasses = (key) => {
 }
 
 
-// Modify your existing makePlayerChoice method
-
-const getWinnerMessage = () => {
-  const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0;
-  const aiScore = currentGame.value?.players?.ai?.score || 0;
-  const dmScore = currentGame.value?.dmPoints || 0;
-
-  let message = '';
-  
-  if (playerScore > aiScore) {
-    message = "Congratulations! You Won! 🎉";
-  } else if (aiScore > playerScore) {
-    message = "AI Wins! Better luck next time!";
-  } else {
-    message = "It's a tie!";
-  }
-
-  // Add DM context
-  if (dmScore > Math.max(playerScore, aiScore)) {
-    message += "\nBut the real winner is the Dungeon Master! 😈";
-  }
-
-  return message;
-};
 
 const emit = defineEmits(["game-complete"]);
 const isComponentMounted = ref(true);
@@ -419,7 +666,6 @@ watch(
 onMounted(async () => {
   isLoading.value = true;
   error.value = null;
-  isComponentMounted.value = true;
 
   try {
     if (!props.gameId) {
@@ -435,18 +681,18 @@ onMounted(async () => {
       throw new Error('Unauthorized access to game');
     }
 
+    // Initialize DM animation
+    await loadDMLottieAnimation();
+    await updateDMAnimation('idle');
+
   } catch (err) {
     console.error('Error loading game:', err);
     error.value = err.message;
-    if (isComponentMounted.value) {
-      setTimeout(() => {
-        router.push('/gamemenu');
-      }, 2000);
-    }
+    setTimeout(() => {
+      router.push('/gamemenu');
+    }, 2000);
   } finally {
-    if (isComponentMounted.value) {
-      isLoading.value = false;
-    }
+    isLoading.value = false;
   }
 });
 
@@ -476,87 +722,141 @@ const diceModifiers = computed(() => {
   return modifier
 })
 
-// Update the choice button class handling
-const makePlayerChoice = async (choice) => {
-  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return;
-  if (!diceResult.value && !isRolling.value) return;
-  
-  playerChoice.value = choice;
-  
+
+onMounted(async () => {
+  isLoading.value = true;
+  error.value = null;
+
   try {
-    const diceInfo = {
-      diceRoll: diceResult.value,
-      finalResult: finalDiceResult.value,
-      modifier: diceModifiers.value,
-      isCritical: diceResult.value === 12,
-      isCriticalFail: diceResult.value === 2,
-      dcCheck: currentGame.value.currentScene.skillCheck?.dcCheck || 10
-    };
-
-    roundOutcome.value = null;
-
-    const result = await makeChoice(
-      props.gameId,
-      choice,
-      diceInfo
-    );
-
-    if (result?.outcome) {
-      roundOutcome.value = {
-        ...result.outcome,
-        pointMultiplier: result.outcome.pointMultiplier || 1,
-        playerPoints: result.outcome.playerPoints || 0,
-        dmPoints: result.outcome.dmPoints || 0,
-        narrative: result.outcome.narrative || "The round concludes..."
-      };
+    if (!props.gameId) {
+      throw new Error('No game ID provided');
     }
 
-    // Show outcome briefly
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Progress to next round or end game
-    if (result.nextScene) {
-      playerChoice.value = null;
-      aiChoice.value = null;
-      roundOutcome.value = null;
-      resetRoll();
-    } else {
-      showingResults.value = true;
-      if (isComponentMounted.value) {
-        emit('game-complete');
-      }
+    const game = await fetchGame(props.gameId);
+    if (!game) {
+      throw new Error('Game not found');
     }
+
+    if (!game.players?.[authStore.user?.uid]) {
+      throw new Error('Unauthorized access to game');
+    }
+
+    // Initialize DM animation
+    loadDMLottieAnimation();
+    updateDMAnimation('idle');
+
   } catch (err) {
-    console.error('Error making choice:', err);
+    console.error('Error loading game:', err);
     error.value = err.message;
-    playerChoice.value = null;
-    roundOutcome.value = null;
+    setTimeout(() => {
+      router.push('/gamemenu');
+    }, 2000);
+  } finally {
+    isLoading.value = false;
   }
-};
+});
 
+onUnmounted(() => {
+  if (dmLottieAnimation.value) {
+    dmLottieAnimation.value.destroy();
+  }
+  cleanupGameListener();
+});
 
-
-// Update watching for round changes
+// Watch for scene changes
 watch(
   () => currentGame.value?.currentScene,
-  (newScene, oldScene) => {
+  async (newScene, oldScene) => {
     if (newScene && newScene !== oldScene) {
-      // Reset state for new scene
       playerChoice.value = null;
-      aiChoice.value = null;
       roundOutcome.value = null;
       resetRoll();
-      // Reset any other relevant state
       showingResults.value = false;
+      await updateDMAnimation('talking');
     }
   },
   { deep: true }
 );
+
 </script>
 
 <style scoped>
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ken-burns {
+  0% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1.15);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 1s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+.animate-ken-burns {
+  animation: ken-burns 20s ease-out infinite alternate;
+}
+
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  bottom: 12px;
+  width: 0;
+  height: 0;
+  border-right: 8px solid rgba(126, 34, 206, 0.5);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Glass effect */
+.backdrop-blur-sm {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Touch interactions */
+@media (hover: none) {
+  .active\:bg-purple-800:active {
+    background-color: rgb(107, 33, 168);
+  }
+  
+  .hover\:scale-\[0\.98\]:active {
+    transform: scale(0.98);
+  }
 }
 </style>

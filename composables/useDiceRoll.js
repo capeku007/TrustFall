@@ -1,20 +1,19 @@
 import { ref, computed } from 'vue'
 
 export const useDiceRoll = () => {
-  const diceResults = ref([null, null]) // Track both dice separately
+  const diceResults = ref([0, 0])
   const isRolling = ref(false)
   const currentModifier = ref(0)
-  
-  // Sum of both dice plus modifier
-  const finalResult = computed(() => {
-    if (!diceResults.value[0] || !diceResults.value[1]) return null
-    return diceResults.value[0] + diceResults.value[1] + currentModifier.value
+  const showChoices = ref(false)
+
+  // Sum of both dice
+  const diceResult = computed(() => {
+    return diceResults.value[0] + diceResults.value[1]
   })
 
-  // Individual die result for display
-  const diceResult = computed(() => {
-    if (!diceResults.value[0] || !diceResults.value[1]) return null
-    return diceResults.value[0] + diceResults.value[1]
+  // Final result including modifier
+  const finalResult = computed(() => {
+    return diceResult.value + currentModifier.value
   })
 
   const rollSingleDie = () => {
@@ -22,6 +21,7 @@ export const useDiceRoll = () => {
   }
 
   const rollDice = async () => {
+    showChoices.value = false
     isRolling.value = true
     
     // Animate roll for both dice
@@ -33,48 +33,48 @@ export const useDiceRoll = () => {
     // Final results
     diceResults.value = [rollSingleDie(), rollSingleDie()]
     isRolling.value = false
-    return finalResult.value
+    
+    // Delay showing choices
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    showChoices.value = true
+    
+    return {
+      diceRoll: diceResult.value,
+      finalResult: finalResult.value,
+      diceResults: [...diceResults.value],
+      modifier: currentModifier.value
+    }
   }
 
   const resetRoll = () => {
-    diceResults.value = [null, null]
+    diceResults.value = [0, 0]
     currentModifier.value = 0
     isRolling.value = false
+    showChoices.value = false
   }
 
-  // Calculate bonus points based on roll result
   const calculateDiceBonus = (dcCheck = 7) => {
-    if (!diceResult.value) return 0
-    
-    // Critical success (rolling 12) adds +1 point
+    if (diceResult.value === 0) return 0
     if (diceResult.value === 12) return 1
-    
-    // Critical failure (rolling 2) subtracts 1 point
     if (diceResult.value === 2) return -1
-    
-    // Normal success (meeting or exceeding DC) adds 0.5 points
     if (finalResult.value >= dcCheck) return 0.5
-    
-    // Normal failure has no point impact
     return 0
   }
 
-  // Helper to get descriptive text for the roll
   const getRollDescription = (dcCheck = 7) => {
-    if (!diceResult.value) return ''
+    if (diceResult.value === 0) return ''
     if (diceResult.value === 12) return 'Critical Success! (+1 point)'
     if (diceResult.value === 2) return 'Critical Failure! (-1 point)'
     if (finalResult.value >= dcCheck) return 'Success! (+0.5 points)'
-    return 'Failure'
+    return `Failure (DC ${dcCheck} required)`
   }
 
-  // Helper to get CSS class for the roll result
   const getRollClass = (dcCheck = 7) => {
-    if (!diceResult.value) return ''
-    if (diceResult.value === 12) return 'text-green-600'
-    if (diceResult.value === 2) return 'text-red-600'
-    if (finalResult.value >= dcCheck) return 'text-blue-600'
-    return 'text-gray-600'
+    if (diceResult.value === 0) return ''
+    if (diceResult.value === 12) return 'text-green-400'
+    if (diceResult.value === 2) return 'text-red-400'
+    if (finalResult.value >= dcCheck) return 'text-blue-400'
+    return 'text-gray-400'
   }
 
   return {
@@ -82,6 +82,7 @@ export const useDiceRoll = () => {
     diceResults,
     finalResult,
     isRolling,
+    showChoices,
     currentModifier,
     rollDice,
     resetRoll,

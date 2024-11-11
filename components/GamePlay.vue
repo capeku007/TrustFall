@@ -21,7 +21,7 @@
       <!-- Sticky Game Header -->
       <div class="sticky top-0 bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 z-40">
         <div class="max-w-3xl mx-auto px-4 py-3">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center">
             <div>
               <p class="text-sm font-medium text-gray-400">
                 Round {{ currentGame.currentRound }} of 5
@@ -29,10 +29,6 @@
               <h1 class="text-base font-bold text-white line-clamp-1">
                 {{ currentGame.currentScene?.title || "Loading..." }}
               </h1>
-            </div>
-            <div class="text-right space-y-0.5">
-              <p class="text-sm font-medium text-purple-400">DM Score: {{ currentGame.dmPoints || 0 }}</p>
-              <p class="text-sm font-medium text-gray-400">Your Score: {{ playerScore }}</p>
             </div>
           </div>
 
@@ -64,8 +60,8 @@
 
       <!-- Main Scene Area -->
       <div v-if="currentGame.currentScene && !showingResults" 
-           class="relative min-h-[60vh]">
-        <!-- Scene Image with Parallax -->
+           class="relative min-h-[calc(100vh-4rem)]">
+        <!-- Scene Image -->
         <div class="absolute inset-0 overflow-hidden">
           <img 
             :src="currentGame.currentScene.imageUrl || '/api/placeholder/800/600'" 
@@ -75,74 +71,54 @@
           <div class="absolute inset-0 bg-gradient-to-b from-gray-900/40 via-gray-900/60 to-gray-900"></div>
         </div>
 
-        <!-- Animated Description -->
-        <div class="relative px-4 py-12">
-          <div 
-            class="max-w-2xl mx-auto text-white text-lg font-medium text-center leading-relaxed opacity-0 animate-fadeIn"
-            style="animation-delay: 0.5s; animation-fill-mode: forwards;"
-          >
-            {{ currentGame.currentScene.description }}
-          </div>
-        </div>
-
-        <!-- DM Avatar and Chat -->
-        <div class="relative px-4 mt-4 max-w-3xl mx-auto">
-          <div class="flex items-end space-x-3">
-            <!-- DM Avatar with Lottie -->
-            <div 
-              ref="dmAvatar"
-              class="w-14 h-14 rounded-full bg-purple-900/50 backdrop-blur-sm overflow-hidden flex-shrink-0 border-2 border-purple-500/30"
-            >
-              <!-- Lottie animation will be mounted here -->
-            </div>
-
-            <!-- Chat Bubble -->
-            <div 
-              class="flex-1 mb-2 transform transition-all duration-300"
-              :class="isChatMinimized ? 'scale-95 opacity-80' : 'scale-100 opacity-100'"
-            >
-              <div 
-                @click="toggleChat"
-                class="bg-purple-900/50 backdrop-blur-sm rounded-t-2xl rounded-br-2xl p-4 text-white cursor-pointer relative chat-bubble"
-              >
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-purple-300">Dungeon Master</span>
-                  <button 
-                    class="text-purple-400 hover:text-purple-300 transition-colors"
-                    @click.stop="toggleChat"
-                  >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      class="h-5 w-5 transition-transform duration-300" 
-                      :class="isChatMinimized ? 'rotate-180' : ''"
-                      viewBox="0 0 20 20" 
-                      fill="currentColor"
-                    >
-                      <path 
-                        fill-rule="evenodd" 
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
-                        clip-rule="evenodd" 
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <div 
-                  class="space-y-2 overflow-hidden transition-all duration-300"
-                  :class="isChatMinimized ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'"
-                >
-                  <p 
-                    v-for="(line, index) in currentNarration" 
-                    :key="index"
-                    class="text-sm italic leading-relaxed text-gray-100"
-                    :style="{animation: `fadeIn 0.5s ease-in ${index * 0.5 + 1}s forwards`}"
-                  >
-                    "{{ line }}"
-                  </p>
-                </div>
-              </div>
+        <!-- Narration with Paper Effect -->
+        <div class="relative px-4 py-8 md:py-12">
+          <div class="max-w-2xl mx-auto">
+            <div class="bg-[#f4e4bc] p-4 md:p-8 rounded-lg shadow-xl transform rotate-[0.5deg] relative overflow-hidden">
+              <div class="absolute inset-0 bg-[url('/paper-texture.png')] opacity-50 pointer-events-none"></div>
+              
+              <p class="text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed">
+    {{ displayedText }}
+  </p>
             </div>
           </div>
         </div>
+
+        <!-- Persistent DM Avatar -->
+        <div class="fixed md:right-8 right-0 md:top-1/2 bottom-[20vh] transform md:-translate-y-1/2 z-50">
+    <div @click="toggleDMSpeech"
+         class="relative cursor-pointer group">
+      <!-- DM Avatar -->
+      <div ref="dmAvatar"
+           class="w-20 h-20 md:w-32 md:h-32 rounded-full overflow-hidden flex-shrink-0 transition-transform duration-300 group-hover:scale-105">
+      </div>
+
+      <!-- Speech Bubble - Updated positioning -->
+      <Transition name="fade">
+        <div v-if="showDMSpeech" 
+             class="absolute right-full top-1/2 -translate-y-1/2 mr-4 w-[calc(100dvw-10rem)] md:w-80">
+          <div class="bg-purple-900/95 backdrop-blur-md rounded-2xl p-4 text-white relative speech-bubble shadow-xl">
+            <!-- Decorative elements -->
+            <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/20 to-transparent pointer-events-none"></div>
+            <div class="absolute inset-0 rounded-2xl bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
+            
+            <!-- Content -->
+            <div class="relative z-10 space-y-1">
+              <p v-for="(line, index) in currentGame.currentScene?.narration" 
+                 :key="index"
+                 class="text-xs md:text-base italic leading-relaxed"
+                 :style="{
+                   animation: `fadeIn 0.5s ease-out forwards`,
+                   animationDelay: `${index * 0.5}s`
+                 }">
+                "{{ line }}"
+              </p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </div>
+  </div>
       </div>
 
       <!-- Game Interaction Area -->
@@ -193,7 +169,7 @@
           </div>
 
           <!-- Roll Button or Choices -->
-          <div class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12">
+          <div class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12 pb-safe">
             <div class="max-w-3xl mx-auto px-4 pb-4">
               <div v-if="!diceResult && !isRolling">
                 <button 
@@ -229,9 +205,7 @@
                       </div>
                       <div class="flex-1">
                         <h3 class="font-medium text-white">{{ choice.text }}</h3>
-                        <p class="text-sm text-gray-300">
-                          {{ choice.description }}
-                        </p>
+                        <p class="text-sm text-gray-300">{{ choice.description }}</p>
                       </div>
                     </div>
                     
@@ -253,45 +227,40 @@
 
         <!-- Round Outcome -->
         <div v-if="roundOutcome?.narrative" 
-             class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12">
+             class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12 pb-safe">
           <div class="max-w-3xl mx-auto px-4 pb-4">
-            <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 space-y-3 animate-slideUp">
-              <p class="text-gray-100 italic">{{ roundOutcome.narrative }}</p>
-              <div class="flex justify-between text-sm">
-                <span class="text-purple-400 font-medium">
-                  +{{ roundOutcome.playerPoints || 0 }} points
-                </span>
-                <span class="text-gray-400">
-                  DM: +{{ roundOutcome.dmPoints || 0 }}
-                </span>
-              </div>
+            <div class="bg-[#f4e4bc] p-6 rounded-lg shadow-xl transform rotate-[0.3deg] relative overflow-hidden animate-slideUp">
+              <div class="absolute inset-0 bg-[url('/paper-texture.png')] opacity-50 pointer-events-none"></div>
+              <p class="text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed italic">
+                {{ roundOutcome.narrative }}
+              </p>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Game End Screen -->
-        <div v-if="isGameOver" 
-             class="fixed inset-0 bg-gray-900/98 backdrop-blur-lg z-50 flex items-center justify-center p-4">
-          <div class="w-full max-w-md text-center space-y-6 animate-fadeIn">
-            <div class="space-y-4">
-              <h2 class="text-3xl font-bold text-white">Game Over!</h2>
-              <p class="text-xl text-gray-300">{{ getWinnerMessage() }}</p>
-              <div class="flex justify-center space-x-8 text-center">
-                <div>
-                  <p class="text-sm text-gray-400">Your Score</p>
-                  <p class="text-2xl font-bold text-white">{{ playerScore }}</p>
-                </div>
-                <div>
-                  <p class="text-sm text-gray-400">DM's Score</p>
-                  <p class="text-2xl font-bold text-purple-400">{{ currentGame.dmPoints }}</p>
-                </div>
+      <!-- Game End Screen -->
+      <div v-if="isGameOver" 
+           class="fixed inset-0 bg-gray-900/98 backdrop-blur-lg z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-md text-center space-y-6 animate-fadeIn">
+          <div class="space-y-4">
+            <h2 class="text-3xl font-bold text-white">Game Over!</h2>
+            <p class="text-xl text-gray-300">{{ getWinnerMessage() }}</p>
+            <div class="flex justify-center space-x-8 text-center">
+              <div>
+                <p class="text-sm text-gray-400">Your Score</p>
+                <p class="text-2xl font-bold text-white">{{ playerScore }}</p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-400">DM's Score</p>
+                <p class="text-2xl font-bold text-purple-400">{{ currentGame.dmPoints }}</p>
               </div>
             </div>
-            <button @click="$emit('game-complete')"
-                    class="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium">
-              View Game Summary
-            </button>
           </div>
+          <button @click="$emit('game-complete')"
+                  class="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium">
+            View Game Summary
+          </button>
         </div>
       </div>
     </template>
@@ -299,419 +268,81 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useGame } from "~/composables/useGame";
-import { useAuthStore } from "~/stores/authStore";
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useGame } from '~/composables/useGame'
+import { useAuthStore } from '~/stores/authStore'
 import { useDiceRoll } from '~/composables/useDiceRoll'
-
-// Import Lottie animations
-import dmIdleAnimation from '@/assets/animations/dm-idle.json';
-import dmTalkingAnimation from '@/assets/animations/dm-talking.json';
-import dmThinkingAnimation from '@/assets/animations/dm-thinking.json';
-import lottie from 'lottie-web';
+import dmIdleAnimation from '@/assets/animations/dm-idle.json'
+import dmTalkingAnimation from '@/assets/animations/dm-talking.json'
+import dmThinkingAnimation from '@/assets/animations/dm-thinking.json'
+import lottie from 'lottie-web'
 
 const props = defineProps({
-  gameId: {
-    type: String,
-    required: true,
-  },
-});
+  gameId: { type: String, required: true }
+})
+
+const emit = defineEmits(['game-complete'])
+
 const {
   diceResult,
   diceResults,
   finalResult: finalDiceResult,
   isRolling,
-  currentModifier,
   rollDice,
   resetRoll,
   getRollClass,
   getRollDescription
 } = useDiceRoll()
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
+
+const router = useRouter()
+const authStore = useAuthStore()
 const {
   currentGame,
   error: gameError,
   loading: gameLoading,
   fetchGame,
   makeChoice,
-  cleanupGameListener,
-} = useGame();
-
+  cleanupGameListener
+} = useGame()
 
 // UI State
-const dmAvatar = ref(null);
-const dmLottieAnimation = ref(null);
-const isChatMinimized = ref(false);
-const isLoading = ref(true);
-const error = ref(null);
-const playerChoice = ref(null);
-const showingResults = ref(false);
-const currentAnimationState = ref('idle');
-const aiChoice = ref(null);
-
+const isLoading = ref(true)
+const error = ref(null)
+const playerChoice = ref(null)
+const showingResults = ref(false)
+const dmAvatar = ref(null)
+const dmLottieAnimation = ref(null)
+const showDMSpeech = ref(false)
+const displayedText = ref('')
+const isComponentMounted = ref(true)
+const currentDMState = ref('idle')
 // Round outcome state
-const roundOutcome = ref({
-  pointMultiplier: 1,
-  playerPoints: 0,
-  dmPoints: 0,
-  narrative: "",
-});
+const roundOutcome = ref(null)
 
-const dmAnimations = {
-  idle: () => import('@/assets/animations/dm-idle.json'),
-  talking: () => import('@/assets/animations/dm-talking.json'),
-  thinking: () => import('@/assets/animations/dm-thinking.json')
-};
-
-const loadDMLottieAnimation = async () => {
-  if (!dmAvatar.value) return;
-
-  try {
-    // Destroy existing animation if any
-    if (dmLottieAnimation.value) {
-      dmLottieAnimation.value.destroy();
-    }
-
-    // Get the correct animation data based on state
-    let animationData;
-    switch (currentAnimationState.value) {
-      case 'talking':
-        animationData = await dmAnimations.talking();
-        break;
-      case 'thinking':
-        animationData = await dmAnimations.thinking();
-        break;
-      default:
-        animationData = await dmAnimations.idle();
-    }
-
-    // Create new animation
-    dmLottieAnimation.value = lottie.loadAnimation({
-      container: dmAvatar.value,
-      renderer: 'svg',
-      loop: true,
-      autoplay: true,
-      animationData: animationData.default // Note the .default when using dynamic import
-    });
-  } catch (err) {
-    console.error('Error loading animation:', err);
-  }
-};
-
-const updateDMAnimation = async (state) => {
-  currentAnimationState.value = state;
-  await loadDMLottieAnimation();
-};
-
-
-// computed
-// Computed properties
-const currentScene = computed(() => currentGame.value?.currentScene || null);
-
+// Computed Properties
 const hasRoundBeenPlayed = computed(() => {
-  if (!currentGame.value || !authStore.user) return false;
-  const currentRoundChoices = currentGame.value.players[authStore.user.uid]?.choices || {};
-  return !!currentRoundChoices[currentGame.value.currentRound];
-});
+  if (!currentGame.value || !authStore.user) return false
+  const currentRoundChoices = currentGame.value.players[authStore.user.uid]?.choices || {}
+  return !!currentRoundChoices[currentGame.value.currentRound]
+})
+
+const hasPlayerMadeChoice = computed(() => playerChoice.value !== null)
 
 const isGameOver = computed(() => {
-  if (!currentGame.value) return false;
-  return currentGame.value.status === 'completed';
-});
-
-const currentNarration = computed(() => {
-  if (!currentGame.value?.currentScene?.narration) return [
-    "The story continues...",
-    "What will you choose?"
-  ];
-  return currentGame.value.currentScene.narration;
-});
+  if (!currentGame.value) return false
+  return currentGame.value.status === 'completed'
+})
 
 const playerScore = computed(() => {
-  if (!currentGame.value?.players?.[authStore.user?.uid]?.score) return 0;
-  return currentGame.value.players[authStore.user.uid].score;
-});
-
-
-// Choice Methods
-const getChoiceClasses = (key) => {
-  const baseClasses = 'transition-all duration-300';
-  switch (key) {
-    case 'cooperate':
-      return `${baseClasses} hover:bg-green-900/20`;
-    case 'negotiate':
-      return `${baseClasses} hover:bg-purple-900/20`;
-    case 'betray':
-      return `${baseClasses} hover:bg-red-900/20`;
-    default:
-      return baseClasses;
-  }
-};
-
-const getChoiceIconClasses = (key) => {
-  switch (key) {
-    case 'cooperate':
-      return 'bg-green-900/50';
-    case 'negotiate':
-      return 'bg-purple-900/50';
-    case 'betray':
-      return 'bg-red-900/50';
-    default:
-      return '';
-  }
-};
-
-const getChoiceTextClass = (key) => {
-  switch (key) {
-    case 'cooperate':
-      return 'text-green-400';
-    case 'negotiate':
-      return 'text-purple-400';
-    case 'betray':
-      return 'text-red-400';
-    default:
-      return '';
-  }
-};
-
-const getChoiceIcon = (key) => {
-  switch (key) {
-    case 'cooperate':
-      return '✓';
-    case 'negotiate':
-      return '⟳';
-    case 'betray':
-      return '✗';
-    default:
-      return '';
-  }
-};
-
-
-// Computed
-const hasPlayerMadeChoice = computed(() => playerChoice.value !== null);
-
-const currentRound = computed(() => {
-  if (!currentGame.value?.scenario?.rounds) return null;
-  return currentGame.value.scenario.rounds.find(
-    (round) => round.id === currentGame.value.currentRound
-  );
-});
-
-
-const toggleChat = async () => {
-  isChatMinimized.value = !isChatMinimized.value;
-  await updateDMAnimation(isChatMinimized.value ? 'idle' : 'talking');
-};
-
-const performDiceRoll = async () => {
-  await updateDMAnimation('thinking');
-  try {
-    await rollDice();
-    currentModifier.value = diceModifiers.value;
-  } catch (err) {
-    console.error('Error rolling dice:', err);
-  } finally {
-    await updateDMAnimation('talking');
-  }
-};
-
-
-const makePlayerChoice = async (choice) => {
-  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return;
-  if (!diceResult.value && !isRolling.value) return;
-  
-  updateDMAnimation('thinking');
-  playerChoice.value = choice;
-  
-  try {
-    const diceInfo = {
-      diceRoll: diceResult.value,
-      finalResult: finalDiceResult.value,
-      modifier: diceModifiers.value,
-      isCritical: diceResult.value === 12,
-      isCriticalFail: diceResult.value === 2,
-      dcCheck: currentGame.value.currentScene.skillCheck?.dcCheck || 10
-    };
-
-    roundOutcome.value = null;
-    const result = await makeChoice(props.gameId, choice, diceInfo);
-
-    if (result?.outcome) {
-      roundOutcome.value = {
-        ...result.outcome,
-        pointMultiplier: result.outcome.pointMultiplier || 1,
-        playerPoints: result.outcome.playerPoints || 0,
-        dmPoints: result.outcome.dmPoints || 0,
-        narrative: result.outcome.narrative || "The round concludes..."
-      };
-      updateDMAnimation('talking');
-    }
-
-    // Show outcome for 3 seconds
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Check if game is complete
-    if (currentGame.value?.status === 'completed') {
-      showingResults.value = true;
-      if (isComponentMounted.value) {
-        emit('game-complete');
-      }
-    } else {
-      // Reset state for next round
-      playerChoice.value = null;
-      roundOutcome.value = null;
-      resetRoll();
-      diceResult.value = null;
-      updateDMAnimation('idle');
-    }
-  } catch (err) {
-    console.error('Error making choice:', err);
-    error.value = err.message;
-    playerChoice.value = null;
-    roundOutcome.value = null;
-    updateDMAnimation('idle');
-  }
-};
-
-// Add a watch for game status changes
-watch(
-  () => currentGame.value?.status,
-  (newStatus) => {
-    if (newStatus === 'completed' && isComponentMounted.value) {
-      showingResults.value = true;
-      emit('game-complete');
-    }
-  }
-);
-
-// Modify the scene change watcher
-watch(
-  () => currentGame.value?.currentScene,
-  (newScene, oldScene) => {
-    if (newScene && newScene !== oldScene) {
-      // Reset all state for new scene
-      playerChoice.value = null;
-      roundOutcome.value = null;
-      diceResult.value = null;
-      resetRoll();
-      showingResults.value = false;
-      updateDMAnimation('talking');
-    }
-  },
-  { deep: true }
-);
-
-// Methods
-// Game Methods
-
-
-const getWinnerMessage = () => {
-  const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0;
-  const dmScore = currentGame.value?.dmPoints || 0;
-
-  if (playerScore > dmScore) {
-    return "You've outsmarted the Dungeon Master! 🎉";
-  } else if (dmScore > playerScore) {
-    return "The Dungeon Master prevails! Better luck next time! 😈";
-  } else {
-    return "A perfect balance - it's a tie! 🤝";
-  }
-};
-
-
-// Button classes including hover and active states
-const getChoiceButtonClasses = (key) => {
-  const baseClasses = 'flex flex-col items-center p-6 border-2 rounded-lg transition-colors'
-  const activeClasses = {
-    cooperate: 'border-green-500 bg-green-50',
-    negotiate: 'border-purple-500 bg-purple-50',
-    betray: 'border-red-500 bg-red-50'
-  }
-  const inactiveClasses = {
-    cooperate: 'hover:border-green-500 hover:bg-green-50',
-    negotiate: 'hover:border-purple-500 hover:bg-purple-50',
-    betray: 'hover:border-red-500 hover:bg-red-50'
-  }
-
-  if (playerChoice.value === key) {
-    return `${baseClasses} ${activeClasses[key]}`
-  }
-  
-  return `${baseClasses} border-gray-200 ${inactiveClasses[key]}`
-}
-
-
-
-const emit = defineEmits(["game-complete"]);
-const isComponentMounted = ref(true);
-
-onUnmounted(() => {
-  isComponentMounted.value = false;
-  cleanupGameListener();
-});
-
-watch(
-  () => currentGame.value?.currentRound,
-  (newRound) => {
-    if (newRound === 6 && isComponentMounted.value) {
-      emit('game-complete');
-    }
-  }
-);
-
-onMounted(async () => {
-  isLoading.value = true;
-  error.value = null;
-
-  try {
-    if (!props.gameId) {
-      throw new Error('No game ID provided');
-    }
-
-    const game = await fetchGame(props.gameId);
-    if (!game) {
-      throw new Error('Game not found');
-    }
-
-    if (!game.players?.[authStore.user?.uid]) {
-      throw new Error('Unauthorized access to game');
-    }
-
-    // Initialize DM animation
-    await loadDMLottieAnimation();
-    await updateDMAnimation('idle');
-
-  } catch (err) {
-    console.error('Error loading game:', err);
-    error.value = err.message;
-    setTimeout(() => {
-      router.push('/gamemenu');
-    }, 2000);
-  } finally {
-    isLoading.value = false;
-  }
-});
-
-const getDiceResultClass = computed(() => {
-  if (!finalDiceResult.value) return ''
-  return getRollClass(currentGame.value?.currentScene?.skillCheck?.dcCheck || 7)
+  if (!currentGame.value?.players?.[authStore.user?.uid]?.score) return 0
+  return currentGame.value.players[authStore.user.uid].score
 })
 
-const getDiceResultMessage = computed(() => {
-  if (!finalDiceResult.value) return ''
-  return getRollDescription(currentGame.value?.currentScene?.skillCheck?.dcCheck || 7)
-})
-
-// Update dice modifiers computation
 const diceModifiers = computed(() => {
   if (!currentGame.value?.consequences) return 0
   
   let modifier = 0
-  // Add modifiers based on past consequences
   Object.entries(currentGame.value.consequences).forEach(([_, consequence]) => {
     if (consequence.type === 'LOYALTY') modifier += 2
     if (consequence.type === 'BETRAYAL') modifier -= 1
@@ -722,141 +353,304 @@ const diceModifiers = computed(() => {
   return modifier
 })
 
+// Methods
+const initDMLottie = (state = 'idle') => {
+  if (!dmAvatar.value) return
 
+  try {
+    if (dmLottieAnimation.value) {
+      dmLottieAnimation.value.destroy()
+    }
+
+    const animationData = {
+      idle: dmIdleAnimation,
+      talking: dmTalkingAnimation,
+      thinking: dmThinkingAnimation
+    }[state]
+
+    dmLottieAnimation.value = lottie.loadAnimation({
+      container: dmAvatar.value,
+      renderer: 'svg',
+      loop: true,
+      autoplay: true,
+      animationData,
+      rendererSettings: {
+        preserveAspectRatio: 'xMidYMid slice'
+      }
+    })
+  } catch (err) {
+    console.error('Error loading DM animation:', err)
+  }
+}
+
+// Update DM state
+const updateDMState = (state) => {
+  currentDMState.value = state
+  initDMLottie(state)
+}
+
+const typewriterEffect = (text) => {
+  if (!text) return
+  
+  displayedText.value = ''
+  updateDMState('talking') // Start talking while text appears
+  let currentIndex = 0
+
+  const interval = setInterval(() => {
+    if (currentIndex < text.length) {
+      displayedText.value = text.substring(0, currentIndex + 1)
+      currentIndex++
+    } else {
+      clearInterval(interval)
+      updateDMState('idle') // Return to idle after text finishes
+      setTimeout(() => {
+        showDMSpeech.value = true
+        updateDMState('talking') // Start talking when speech bubble appears
+      }, 5000)
+    }
+  }, 50)
+
+  return interval
+}
+
+// Modified toggleDMSpeech
+const toggleDMSpeech = () => {
+  showDMSpeech.value = !showDMSpeech.value
+  updateDMState(showDMSpeech.value ? 'talking' : 'idle')
+}
+
+
+const performDiceRoll = async () => {
+  updateDMState('thinking')
+  try {
+    await rollDice()
+  } catch (err) {
+    console.error('Error rolling dice:', err)
+  } finally {
+    updateDMState('idle')
+  }
+}
+
+const getWinnerMessage = () => {
+  const playerScore = currentGame.value?.players[authStore.user.uid]?.score || 0
+  const dmScore = currentGame.value?.dmPoints || 0
+
+  if (playerScore > dmScore) {
+    return "You've outsmarted the Dungeon Master! 🎉"
+  } else if (dmScore > playerScore) {
+    return "The Dungeon Master prevails! Better luck next time! 😈"
+  } else {
+    return "A perfect balance - it's a tie! 🤝"
+  }
+}
+
+const getChoiceClasses = (key) => {
+  const baseClasses = 'transition-all duration-300'
+  switch (key) {
+    case 'cooperate': return `${baseClasses} hover:bg-green-900/20`
+    case 'negotiate': return `${baseClasses} hover:bg-purple-900/20`
+    case 'betray': return `${baseClasses} hover:bg-red-900/20`
+    default: return baseClasses
+  }
+}
+
+const getChoiceIconClasses = (key) => {
+  switch (key) {
+    case 'cooperate': return 'bg-green-900/50'
+    case 'negotiate': return 'bg-purple-900/50'
+    case 'betray': return 'bg-red-900/50'
+    default: return ''
+  }
+}
+
+const getChoiceTextClass = (key) => {
+  switch (key) {
+    case 'cooperate': return 'text-green-400'
+    case 'negotiate': return 'text-purple-400'
+    case 'betray': return 'text-red-400'
+    default: return ''
+  }
+}
+
+const getChoiceIcon = (key) => {
+  switch (key) {
+    case 'cooperate': return '✓'
+    case 'negotiate': return '⟳'
+    case 'betray': return '✗'
+    default: return ''
+  }
+}
+
+const makePlayerChoice = async (choice) => {
+  if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return
+  if (!diceResult.value && !isRolling.value) return
+  
+  playerChoice.value = choice
+  
+  try {
+    const diceInfo = {
+      diceRoll: diceResult.value,
+      finalResult: finalDiceResult.value,
+      modifier: diceModifiers.value,
+      isCritical: diceResult.value === 12,
+      isCriticalFail: diceResult.value === 2,
+      dcCheck: currentGame.value.currentScene.skillCheck?.dcCheck || 10
+    }
+
+    roundOutcome.value = null
+    const result = await makeChoice(props.gameId, choice, diceInfo)
+
+    if (result?.outcome) {
+      roundOutcome.value = result.outcome
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    
+    if (currentGame.value?.status === 'completed') {
+      showingResults.value = true
+      if (isComponentMounted.value) {
+        emit('game-complete')
+      }
+    } else {
+      playerChoice.value = null
+      roundOutcome.value = null
+      resetRoll()
+      diceResult.value = null
+    }
+  } catch (err) {
+    console.error('Error making choice:', err)
+    error.value = err.message
+    playerChoice.value = null
+    roundOutcome.value = null
+  }
+}
+
+// Watchers
+// Scene change watcher
+watch(
+  () => currentGame.value?.currentScene,
+  (newScene) => {
+    if (newScene) {
+      showDMSpeech.value = false
+      displayedText.value = ''
+      
+      // Start typewriter with the scene description
+      if (newScene.description) {
+        typewriterEffect(newScene.description)
+      }
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => currentGame.value?.status,
+  (newStatus) => {
+    if (newStatus === 'completed' && isComponentMounted.value) {
+      showingResults.value = true
+      emit('game-complete')
+    }
+  }
+)
+
+// Lifecycle hooks
 onMounted(async () => {
-  isLoading.value = true;
-  error.value = null;
+  isLoading.value = true
+  error.value = null
 
   try {
     if (!props.gameId) {
-      throw new Error('No game ID provided');
+      throw new Error('No game ID provided')
     }
 
-    const game = await fetchGame(props.gameId);
+    const game = await fetchGame(props.gameId)
     if (!game) {
-      throw new Error('Game not found');
+      throw new Error('Game not found')
     }
 
     if (!game.players?.[authStore.user?.uid]) {
-      throw new Error('Unauthorized access to game');
+      throw new Error('Unauthorized access to game')
     }
 
-    // Initialize DM animation
-    loadDMLottieAnimation();
-    updateDMAnimation('idle');
-
+    await initDMLottie()
   } catch (err) {
-    console.error('Error loading game:', err);
-    error.value = err.message;
+    console.error('Error loading game:', err)
+    error.value = err.message
     setTimeout(() => {
-      router.push('/gamemenu');
-    }, 2000);
+      router.push('/gamemenu')
+    }, 2000)
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
-});
+})
 
 onUnmounted(() => {
+  isComponentMounted.value = false
   if (dmLottieAnimation.value) {
-    dmLottieAnimation.value.destroy();
+    dmLottieAnimation.value.destroy()
   }
-  cleanupGameListener();
-});
-
-// Watch for scene changes
-watch(
-  () => currentGame.value?.currentScene,
-  async (newScene, oldScene) => {
-    if (newScene && newScene !== oldScene) {
-      playerChoice.value = null;
-      roundOutcome.value = null;
-      resetRoll();
-      showingResults.value = false;
-      await updateDMAnimation('talking');
-    }
-  },
-  { deep: true }
-);
-
+  cleanupGameListener()
+})
 </script>
 
 <style scoped>
+/* DM Avatar styles */
+:deep(svg) {
+  width: 100%;
+  height: 100%;
+  transform: scale(1.2);
+}
+
+/* Speech Bubble styles */
+.speech-bubble {
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+/* Speech bubble arrow - same for both mobile and desktop */
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 12px;
+  border-style: solid;
+  border-color: transparent transparent transparent theme('colors.purple.900/0.95');
+  filter: drop-shadow(2px 0 2px rgba(0, 0, 0, 0.1));
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  right: -13px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 12px;
+  border-style: solid;
+  border-color: transparent transparent transparent rgba(139, 92, 246, 0.3);
+  z-index: -1;
+}
+
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
 @keyframes fadeIn {
   from { 
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(5px);
   }
   to { 
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes ken-burns {
-  0% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1.15);
-  }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 1s ease-out;
-}
-
-.animate-slideUp {
-  animation: slideUp 0.3s ease-out forwards;
-}
-
-.animate-ken-burns {
-  animation: ken-burns 20s ease-out infinite alternate;
-}
-
-.chat-bubble::after {
-  content: '';
-  position: absolute;
-  left: -8px;
-  bottom: 12px;
-  width: 0;
-  height: 0;
-  border-right: 8px solid rgba(126, 34, 206, 0.5);
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
-}
-
-/* Smooth transitions */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
-}
-
-/* Glass effect */
-.backdrop-blur-sm {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-/* Touch interactions */
-@media (hover: none) {
-  .active\:bg-purple-800:active {
-    background-color: rgb(107, 33, 168);
-  }
-  
-  .hover\:scale-\[0\.98\]:active {
-    transform: scale(0.98);
   }
 }
 </style>

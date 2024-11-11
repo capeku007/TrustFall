@@ -146,7 +146,7 @@
   </div>
   <div v-else class="space-y-2">
     <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
-      {{ finalDiceResult }}
+      {{ finalResult }}
     </p>
     <div class="text-gray-400 space-x-2">
       <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>
@@ -185,7 +185,7 @@
       </div>
       <div v-else class="space-y-2">
         <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
-          {{ finalDiceResult }}
+          {{ finalResult }}
         </p>
         <div class="text-gray-400 space-x-2">
           <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>

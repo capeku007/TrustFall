@@ -56,25 +56,25 @@
           <div class="absolute inset-0 bg-gradient-to-b from-gray-900/40 via-gray-900/60 to-gray-900"></div>
         </div>
 
-        <!-- Narration with Paper Effect -->
-        <div class="relative px-4 py-8 md:py-12">
-          <div class="max-w-2xl mx-auto">
-            <div class="bg-[#f4e4bc] p-4 md:p-8 rounded-lg shadow-xl transform rotate-[0.5deg] relative overflow-hidden">
-              <div class="absolute inset-0 bg-[url('/paper-texture.png')] opacity-50 pointer-events-none"></div>
-              
-              <!-- Previous round outcome (if exists) -->
-              <div v-if="previousRoundOutcome" 
-                   class="mb-6 text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed italic border-b border-gray-400 pb-4">
-                {{ previousRoundOutcome }}
-              </div>
-              
-              <!-- Current scene description -->
-              <p class="text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed">
-                {{ displayedText }}
-              </p>
+<!-- Narration with Paper Effect -->
+<div class="relative px-4 py-8 md:py-12">
+        <div class="max-w-2xl mx-auto">
+          <div class="bg-[#f4e4bc] p-4 md:p-8 rounded-lg shadow-xl transform rotate-[0.5deg] relative overflow-hidden">
+            <div class="absolute inset-0 bg-[url('/paper-texture.png')] opacity-50 pointer-events-none"></div>
+            
+            <!-- Previous round outcome (if exists) -->
+            <div v-if="previousRoundOutcome" 
+                 class="mb-6 text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed italic border-b border-gray-400 pb-4">
+              {{ previousRoundOutcome }}
             </div>
+            
+            <!-- Current scene description -->
+            <p class="text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed">
+              {{ displayedText }}
+            </p>
           </div>
         </div>
+      </div>
 
         <!-- Persistent DM Avatar -->
         <div class="fixed md:right-8 right-0 md:top-1/2 bottom-[20vh] transform md:-translate-y-1/2 z-50">
@@ -242,18 +242,18 @@
 </div>
         </div>
 
-        <!-- Round Outcome -->
-        <div v-if="roundOutcome?.narrative" 
-             class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12 pb-safe">
-          <div class="max-w-3xl mx-auto px-4 pb-4">
-            <div class="bg-[#f4e4bc] p-6 rounded-lg shadow-xl transform rotate-[0.3deg] relative overflow-hidden animate-slideUp">
-              <div class="absolute inset-0 bg-[url('/paper-texture.png')] opacity-50 pointer-events-none"></div>
-              <p class="text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed italic">
-                {{ roundOutcome.narrative }}
-              </p>
-            </div>
+<!-- Round Outcome - Updated -->
+<div v-if="roundOutcome" 
+           class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12 pb-safe">
+        <div class="max-w-3xl mx-auto px-4 pb-4">
+          <div class="bg-[#f4e4bc] p-6 rounded-lg shadow-xl transform rotate-[0.3deg] relative overflow-hidden animate-slideUp">
+            <div class="absolute inset-0 bg-[url('/paper-texture.png')] opacity-50 pointer-events-none"></div>
+            <p class="text-gray-800 text-base md:text-lg relative z-10 font-serif leading-relaxed italic">
+              {{ roundOutcome }}
+            </p>
           </div>
         </div>
+      </div>
       </div>
 
       <!-- Game End Screen -->
@@ -334,9 +334,11 @@ const showDMSpeech = ref(false)
 const displayedText = ref('')
 const isComponentMounted = ref(true)
 const currentDMState = ref('idle')
-// Round outcome state
+
+//  round outcome state management
 const roundOutcome = ref(null)
 const previousRoundOutcome = ref(null)
+const roundOutcomeTimer = ref(null)
 
 // Computed Properties
 const hasRoundBeenPlayed = computed(() => {
@@ -511,12 +513,16 @@ const getChoiceIcon = (key) => {
   }
 }
 
+const isProcessingChoice = ref(false)
+
+// Modified makePlayerChoice function
 const makePlayerChoice = async (choice) => {
   if (!currentGame.value?.currentScene || playerChoice.value || hasRoundBeenPlayed.value) return
   if (!diceResult.value && !isRolling.value) return
   
   playerChoice.value = choice
-  showChoices.value = false // Hide choices when selection is made
+  showChoices.value = false
+  isProcessingChoice.value = true
   
   try {
     const diceInfo = {
@@ -531,7 +537,10 @@ const makePlayerChoice = async (choice) => {
     const result = await makeChoice(props.gameId, choice, diceInfo)
     
     if (result?.outcome) {
+      // Store the outcome for the next round
       localStorage.setItem(`game_${props.gameId}_previous_outcome`, result.outcome.narrative)
+      // Update the previous round outcome immediately for the next scene
+      previousRoundOutcome.value = result.outcome.narrative
     }
 
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -550,28 +559,53 @@ const makePlayerChoice = async (choice) => {
     console.error('Error making choice:', err)
     error.value = err.message
     playerChoice.value = null
+  } finally {
+    isProcessingChoice.value = false
   }
 }
+
+
 
 // Watchers
 watch(
   () => currentGame.value?.currentScene,
-  (newScene) => {
+  (newScene, oldScene) => {
     if (newScene) {
       showDMSpeech.value = false
       displayedText.value = ''
-      showChoices.value = false // Reset choices on scene change
+      showChoices.value = false
       
-      const prevOutcome = localStorage.getItem(`game_${props.gameId}_previous_outcome`)
+      // Only get from localStorage if we don't already have a previous outcome
+      // and we're not currently processing a choice
+      if (!previousRoundOutcome.value && !isProcessingChoice.value) {
+        const prevOutcome = localStorage.getItem(`game_${props.gameId}_previous_outcome`)
+        if (prevOutcome) {
+          previousRoundOutcome.value = prevOutcome
+        }
+      }
       
       if (newScene.description) {
-        typewriterEffect(newScene.description, prevOutcome)
+        const typingInterval = typewriterEffect(newScene.description, previousRoundOutcome.value)
+        return () => {
+          if (typingInterval) clearInterval(typingInterval)
+        }
       }
     }
   },
   { immediate: true }
 )
-
+watch(
+  () => currentGame.value?.currentRound,
+  (newRound, oldRound) => {
+    if (newRound && oldRound && newRound > oldRound) {
+      // Get the stored outcome when advancing to a new round
+      const prevOutcome = localStorage.getItem(`game_${props.gameId}_previous_outcome`)
+      if (prevOutcome) {
+        previousRoundOutcome.value = prevOutcome
+      }
+    }
+  }
+)
 watch(
   () => currentGame.value?.status,
   (newStatus) => {
@@ -601,6 +635,12 @@ onMounted(async () => {
       throw new Error('Unauthorized access to game')
     }
 
+    // Get initial previous round outcome
+    const prevOutcome = localStorage.getItem(`game_${props.gameId}_previous_outcome`)
+    if (prevOutcome) {
+      previousRoundOutcome.value = prevOutcome
+    }
+
     await initDMLottie()
   } catch (err) {
     console.error('Error loading game:', err)
@@ -618,12 +658,29 @@ onUnmounted(() => {
   if (dmLottieAnimation.value) {
     dmLottieAnimation.value.destroy()
   }
+  if (roundOutcomeTimer.value) {
+    clearTimeout(roundOutcomeTimer.value)
+  }
   localStorage.removeItem(`game_${props.gameId}_previous_outcome`)
   cleanupGameListener()
 })
 </script>
 
 <style scoped>
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) rotate(0.3deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0.3deg);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out forwards;
+}
 /* DM Avatar styles */
 :deep(svg) {
   width: 100%;

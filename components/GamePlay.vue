@@ -162,7 +162,6 @@
 
           </div>
 
-          <!-- Roll Button or Choices -->
 <!-- Roll Button or Choices -->
 <div class="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-gray-900 pt-12 pb-safe">
   <div class="max-w-3xl mx-auto px-4 pb-4">
@@ -177,27 +176,32 @@
       </button>
     </div>
 
-    <!-- Roll Result Display -->
+    <!-- Roll Result Display with 3D Dice -->
     <div v-if="isRolling || (diceResult > 0 && !showChoices)" 
-         class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 text-center mb-4">
-      <div v-if="isRolling" class="text-2xl font-bold text-purple-400 animate-bounce">
-        Rolling...
-      </div>
-      <div v-else class="space-y-2">
-        <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
-          {{ finalResult }}
-        </p>
-        <div class="text-gray-400 space-x-2">
-          <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>
-          <span v-if="diceModifiers !== 0">
-            {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
-          </span>
-        </div>
-        <p class="text-sm" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
-          {{ getRollDescription(currentGame.currentScene?.skillCheck?.dcCheck) }}
-        </p>
-      </div>
+     class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 text-center mb-4">
+  <ClientOnly>
+    <DiceRoller 
+      :is-rolling="isRolling" 
+      :dice-results="diceResults" 
+    />
+  </ClientOnly>
+  
+  <!-- Additional Roll Information -->
+  <div v-if="!isRolling" class="space-y-2 mt-4">
+    <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
+      {{ finalResult }}
+    </p>
+    <div class="text-gray-400 space-x-2">
+      <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>
+      <span v-if="diceModifiers !== 0">
+        {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
+      </span>
     </div>
+    <p class="text-sm" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
+      {{ getRollDescription(currentGame.currentScene?.skillCheck?.dcCheck) }}
+    </p>
+  </div>
+</div>
 
     <!-- Choice Buttons -->
     <div v-if="diceResult && showChoices && !playerChoice && currentGame.currentScene?.choices" 

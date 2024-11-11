@@ -24,18 +24,21 @@ export const useDiceRoll = () => {
     showChoices.value = false
     isRolling.value = true
     
-    // Animate roll for both dice
-    for (let i = 0; i < 8; i++) {
+    // Animate roll for longer with 3D animation
+    for (let i = 0; i < 15; i++) {
       diceResults.value = [rollSingleDie(), rollSingleDie()]
-      await new Promise(resolve => setTimeout(resolve, 75))
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
     
     // Final results
     diceResults.value = [rollSingleDie(), rollSingleDie()]
+    
+    // Allow animation to settle
+    await new Promise(resolve => setTimeout(resolve, 1000))
     isRolling.value = false
     
     // Delay showing choices
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    await new Promise(resolve => setTimeout(resolve, 1000))
     showChoices.value = true
     
     return {

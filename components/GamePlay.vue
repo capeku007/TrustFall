@@ -181,26 +181,28 @@
      class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 text-center mb-4">
   <ClientOnly>
     <DiceRoller 
-      :is-rolling="isRolling" 
-      :dice-results="diceResults" 
-    />
+    :is-rolling="isRolling"
+    :roll-button-text="'Roll for ' + currentGame.currentScene?.skillCheck?.name"
+    @roll-complete="handleDiceResults"
+    class="h-64 mb-4"
+  />
   </ClientOnly>
   
   <!-- Additional Roll Information -->
-  <div v-if="!isRolling" class="space-y-2 mt-4">
-    <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
-      {{ finalResult }}
-    </p>
-    <div class="text-gray-400 space-x-2">
-      <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>
-      <span v-if="diceModifiers !== 0">
-        {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
-      </span>
-    </div>
-    <p class="text-sm" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
-      {{ getRollDescription(currentGame.currentScene?.skillCheck?.dcCheck) }}
-    </p>
+  <div v-if="!isRolling && diceResult" class="space-y-2 mt-4">
+  <p class="text-4xl font-bold" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
+    {{ finalResult }}
+  </p>
+  <div class="text-gray-400 space-x-2">
+    <span>{{ diceResults[0] }} + {{ diceResults[1] }}</span>
+    <span v-if="diceModifiers !== 0">
+      {{ diceModifiers >= 0 ? '+' : ''}}{{ diceModifiers }}
+    </span>
   </div>
+  <p class="text-sm" :class="getRollClass(currentGame.currentScene?.skillCheck?.dcCheck)">
+    {{ getRollDescription(currentGame.currentScene?.skillCheck?.dcCheck) }}
+  </p>
+</div>
 </div>
 
     <!-- Choice Buttons -->
@@ -376,7 +378,17 @@ const diceModifiers = computed(() => {
   
   return modifier
 })
-
+const handleDiceResults = (results) => {
+  diceResults.value = results
+  diceResult.value = results[0] + results[1]
+  finalResult.value = diceResult.value + diceModifiers.value
+  
+  // Show choices after the roll animation completes
+  setTimeout(() => {
+    showChoices.value = true
+    isRolling.value = false
+  }, 3000)
+}
 // Methods
 const initDMLottie = (state = 'idle') => {
   if (!dmAvatar.value) return
@@ -448,22 +460,22 @@ const toggleDMSpeech = () => {
 
 const showChoices = ref(false)
 
-// Update the performDiceRoll function
+
+
+// Update performDiceRoll
 const performDiceRoll = async () => {
   if (!currentGame.value?.currentScene?.skillCheck) return
   
-  showChoices.value = false // Hide choices during roll
+  showChoices.value = false
   updateDMState('thinking')
   
   try {
-    await rollDice()
-    // Wait a moment to show the roll result before allowing choices
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    showChoices.value = true
+    isRolling.value = true
+    // The actual roll will be handled by the DiceRoller component
+    // and results will come through handleDiceResults
   } catch (err) {
     console.error('Error rolling dice:', err)
-  } finally {
-    updateDMState('idle')
+    isRolling.value = false
   }
 }
 

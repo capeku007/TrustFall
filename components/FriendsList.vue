@@ -21,6 +21,16 @@
           </svg>
         </div>
         <p class="mt-4 text-sm text-gray-500">No friends added yet</p>
+        <main>
+    <div class="frame">
+      <div class="frame__title">
+        <h1 class="frame__title-main">Three.js Dice Roller</h1>
+      </div>
+    </div>
+    <ClientOnly>
+      <DiceRolle />
+    </ClientOnly>
+  </main>
         <p class="mt-2 text-xs text-gray-400">Visit the Lobby to find players</p>
       </div>
 

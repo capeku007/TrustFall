@@ -181,11 +181,10 @@
      class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6 text-center mb-4">
   <ClientOnly>
     <DiceRoller 
-    :is-rolling="isRolling"
-    :roll-button-text="'Roll for ' + currentGame.currentScene?.skillCheck?.name"
-    @roll-complete="handleDiceResults"
-    class="h-64 mb-4"
-  />
+  :is-rolling="isRolling"
+  :roll-button-text="'Roll for ' + currentGame.currentScene?.skillCheck?.name"
+  @roll-complete="handleDiceResults"
+/>
   </ClientOnly>
   
   <!-- Additional Roll Information -->
@@ -387,7 +386,7 @@ const handleDiceResults = (results) => {
   setTimeout(() => {
     showChoices.value = true
     isRolling.value = false
-  }, 3000)
+  }, 8000)
 }
 // Methods
 const initDMLottie = (state = 'idle') => {

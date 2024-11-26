@@ -32,6 +32,8 @@ const scoreResult = ref(null)
 const rollBtn = ref(null)
 const showScore = ref(false)
 const currentScore = ref('')
+const diceValues = ref([])
+let rolledCount = 0
 
 let renderer, scene, camera, diceMesh, physicsWorld
 const diceArray = []
@@ -44,6 +46,16 @@ const params = {
   notchRadius: 0.12,
   notchDepth: 0.1,
 }
+const props = defineProps({
+  isRolling: Boolean,
+  rollButtonText: {
+    type: String,
+    default: 'ROLL DICE'
+  }
+})
+
+
+const emit = defineEmits(['rollComplete'])
 
 // Initialize physics world
 const initPhysics = () => {
@@ -56,10 +68,11 @@ const initPhysics = () => {
 
 // Create floor
 const createFloor = () => {
+  // Create a smaller floor - 80% of the view width
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(1000, 1000),
+    new THREE.PlaneGeometry(10, 10), // Reduced from 1000 to 20 for better scale
     new THREE.ShadowMaterial({
-      opacity: 0.15  // Match the floor opacity from initScene
+      opacity: 0  // More transparent
     })
   )
   floor.receiveShadow = true
@@ -67,6 +80,7 @@ const createFloor = () => {
   floor.quaternion.setFromAxisAngle(new THREE.Vector3(-1, 0, 0), Math.PI * 0.5)
   scene.add(floor)
 
+  // Match physics floor to visual floor
   const floorBody = new CANNON.Body({
     type: CANNON.Body.STATIC,
     shape: new CANNON.Plane(),
@@ -280,8 +294,16 @@ const showRollResults = (score) => {
   showScore.value = true
   if (currentScore.value === '') {
     currentScore.value = score.toString()
+    diceValues.value[0] = score
   } else {
     currentScore.value += '+' + score.toString()
+    diceValues.value[1] = score
+  }
+  rolledCount++
+
+  // When both dice have landed, emit results if needed
+  if (rolledCount === 2 && props.isRolling) {
+    emit('rollComplete', [...diceValues.value])
   }
 }
 
@@ -310,34 +332,59 @@ const updateSceneSize = () => {
 }
 
 // Throw dice
-
 const throwDice = () => {
   if (!isInitialized) return
   
+  // Reset values
+  showScore.value = false
   currentScore.value = ''
-  showScore.value = true
+  diceValues.value = []
+  rolledCount = 0
 
   diceArray.forEach((d, dIdx) => {
     d.body.velocity.setZero()
     d.body.angularVelocity.setZero()
 
-    d.body.position = new CANNON.Vec3(6, dIdx * 1.5, 0)
+    // Position dice for bird's eye view
+    d.body.position = new CANNON.Vec3(
+      3 - dIdx * 1.5,  // Spread dice horizontally
+      8,               // Height of throw
+      -2              // Distance from camera
+    )
     d.mesh.position.copy(d.body.position)
 
-    d.mesh.rotation.set(2 * Math.PI * Math.random(), 0, 2 * Math.PI * Math.random())
+    // Add more random rotation for interesting throws
+    d.mesh.rotation.set(
+      2 * Math.PI * Math.random(),
+      2 * Math.PI * Math.random(),
+      2 * Math.PI * Math.random()
+    )
     d.body.quaternion.copy(d.mesh.quaternion)
 
+    // Adjust force for better throws from this angle
     const force = 3 + 5 * Math.random()
+    const directionVariance = 0.5 // Add some randomness to throw direction
+    
     d.body.applyImpulse(
-      new CANNON.Vec3(-force, force, 0),
+      new CANNON.Vec3(
+        (Math.random() - 0.5) * directionVariance, // Random X spread
+        -force * 0.5,                              // Downward force
+        (Math.random() - 0.5) * directionVariance  // Random Z spread
+      ),
       new CANNON.Vec3(0, 0, 0.2)
+    )
+
+    // Add some spin
+    d.body.angularVelocity.set(
+      (Math.random() - 0.5) * 20,
+      (Math.random() - 0.5) * 20,
+      (Math.random() - 0.5) * 20
     )
 
     d.body.allowSleep = true
   })
 }
 
-// Initialize scene
 // Initialize scene
 const initScene = async () => {
   renderer = new THREE.WebGLRenderer({
@@ -352,16 +399,28 @@ const initScene = async () => {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0xf0f0f0)  // Light gray background
 
+  // Camera setup for bird's eye view
   camera = new THREE.PerspectiveCamera(
     45,
     window.innerWidth / window.innerHeight,
     0.1,
     300
   )
-  camera.position.set(0, 0.5, 4).multiplyScalar(7)
+
+  // Calculate camera position for 75-degree angle
+  const distance = 20
+  const angle = 75 * (Math.PI / 180)
+  const height = distance * Math.sin(angle)
+  const depth = distance * Math.cos(angle)
+
+  camera.position.set(5, height, depth)  // Positioned slightly to the right
+  camera.lookAt(0, 0, 0)
+  camera.fov = 45
+  camera.updateProjectionMatrix()
 
   updateSceneSize()
 
+  // Lighting setup
   // Brighter ambient light
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.2)
   scene.add(ambientLight)
@@ -408,7 +467,7 @@ const initScene = async () => {
     })
   )
   floor.receiveShadow = true
-  floor.position.y = -7
+  floor.position.y = -2  // Adjusted floor position
   floor.quaternion.setFromAxisAngle(new THREE.Vector3(-1, 0, 0), Math.PI * 0.5)
   scene.add(floor)
 
@@ -448,6 +507,8 @@ onMounted(async () => {
       console.error('Error initializing dice roller:', error)
     }
   }
+
+  throwDice()
 })
 
 onBeforeUnmount(() => {
@@ -466,7 +527,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  background: #1a1a1a;
+  background: transparent;
   border-radius: 0.5rem;
   display: flex;
   flex-direction: column;
